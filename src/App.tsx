@@ -985,7 +985,7 @@ export default function App() {
                                <img src={methodIcon} alt={item.method} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                              </div>
                              <div>
-                               <p className="text-sm font-black text-white uppercase tracking-tight">{item.amount} PTS</p>
+                               <p className="text-sm font-black text-white uppercase tracking-tight">{item.amount} pts ≈ { Math.floor(item.amount * POINT_TO_USD) }$</p>
                                <p className="text-[9px] font-bold text-[#A0AEC0] uppercase opacity-60">
                                  {item.createdAt?.toMillis ? new Date(item.createdAt.toMillis()).toLocaleDateString() : 'Processing...'}
                                </p>
