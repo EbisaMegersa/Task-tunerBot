@@ -872,7 +872,7 @@ export default function App() {
                                <Loader2 className="w-3 h-3 animate-spin" />
                                Verifying...
                              </>
-                           ) : 'Joined? Check now'}
+                           ) : 'Joined'}
                         </button>
                       )}
                     </div>
