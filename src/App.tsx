@@ -352,9 +352,9 @@ export default function App() {
       try {
         adFn().then(() => {
           try {
-            (window as any).Telegram?.WebApp?.showAlert('You have seen an ad!');
+            (window as any).Telegram?.WebApp?.showAlert('You have seen an ad! 2 points earned');
           } catch {
-            alert('You have seen an ad!');
+            alert('You have seen an ad! 2 points earned');
           }
           rewardUser();
         }).catch((err: any) => {
@@ -851,7 +851,7 @@ export default function App() {
                          <CheckCircle2 className="w-3 h-3 text-green-400" />
                        )}
                     </div>
-                    <p className="text-xs text-[#A0AEC0]">Reward: 10 points | Be active Ea</p>
+                    <p className="text-xs text-[#A0AEC0]">Reward: 10 points | Be active EB</p>
                   </div>
                   
                   {!profile?.tasksCompleted.includes('tg_join') ? (
