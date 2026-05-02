@@ -844,7 +844,7 @@ export default function App() {
                          <CheckCircle2 className="w-3 h-3 text-green-400" />
                        )}
                     </div>
-                    <p className="text-xs text-[#A0AEC0]">Reward: 10 points | Single Use</p>
+                    <p className="text-xs text-[#A0AEC0]">Reward: 10 points | we don't force</p>
                   </div>
                   
                   {!profile?.tasksCompleted.includes('tg_join') ? (
