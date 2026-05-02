@@ -13,6 +13,8 @@ import {
   Users, 
   Wallet, 
   User as UserIcon,
+  Settings,
+  ShieldCheck,
   Play,
   CircleDollarSign,
   ArrowUpRight,
@@ -1118,6 +1120,47 @@ export default function App() {
               EXIT MINI APP
             </button>
           </div>
+        ) : activeTab === 'admin' && profile?.telegramId === 2022805638 ? (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between px-2">
+              <h2 className="text-2xl font-black text-white">Admin Panel</h2>
+              <div className="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/30 text-red-500 text-[10px] font-black uppercase tracking-widest">
+                Owner Mode
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div className="stats-card rounded-3xl p-6 border border-red-500/10 bg-gradient-to-br from-red-500/5 to-transparent">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center text-red-500">
+                    <Settings size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white">System Controls</h3>
+                    <p className="text-xs text-[#A0AEC0]">Manage global application settings</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <button className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white flex items-center justify-between px-6 hover:bg-white/10 transition-all">
+                    <span>Export User Data (CSV)</span>
+                    <ArrowUpRight size={14} />
+                  </button>
+                  <button className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white flex items-center justify-between px-6 hover:bg-white/10 transition-all">
+                    <span>Pending Withdrawals</span>
+                    <span className="px-2 py-0.5 rounded-full bg-[#10B981] text-[10px]">{withdrawalHistory.filter(w => w.status === 'Pending').length}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="stats-card rounded-3xl p-6 border border-white/5">
+                <h4 className="font-bold text-sm mb-4">Security Notice</h4>
+                <p className="text-[11px] text-[#A0AEC0] leading-relaxed">
+                  You are logged in as the primary administrator. Actions taken here directly affect the production database. 
+                  Always verify withdrawal addresses before marking as success.
+                </p>
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="space-y-6 text-center">
             {/* Referral Stats Header */}
@@ -1215,6 +1258,14 @@ export default function App() {
           <NavItem icon={<Users />} label="Invite" active={activeTab === 'invite'} onClick={() => setActiveTab('invite')} />
           <NavItem icon={<Wallet />} label="Wallet" active={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
           <NavItem icon={<UserIcon />} label="Profile" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
+          {profile?.telegramId === 2022805638 && (
+            <NavItem 
+              icon={<ShieldCheck className="text-red-500" />} 
+              label="Admin" 
+              active={activeTab === 'admin'} 
+              onClick={() => setActiveTab('admin')} 
+            />
+          )}
         </div>
       </nav>
     </div>
