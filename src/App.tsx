@@ -117,8 +117,20 @@ export default function App() {
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalHistory[]>([]);
   const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
 
+  const [welcomeIndex, setWelcomeIndex] = useState(0);
+  const welcomeMessages = [
+    "Welcome to Task Tuner Rewards Bot",
+    "Prepare for earning",
+    "Invite friends, grow together",
+    "Almost ready..."
+  ];
+
   // Initialize Telegram & Data
   useEffect(() => {
+    const welcomeInterval = setInterval(() => {
+      setWelcomeIndex(prev => (prev + 1) % welcomeMessages.length);
+    }, 2000);
+
     let unsubscribeAuth: (() => void) | undefined;
     let unsubscribeProfile: (() => void) | undefined;
     let unsubscribeHistory: (() => void) | undefined;
@@ -301,6 +313,7 @@ export default function App() {
 
     init();
     return () => {
+      clearInterval(welcomeInterval);
       unsubscribeAuth?.();
       unsubscribeProfile?.();
       unsubscribeHistory?.();
@@ -579,50 +592,58 @@ export default function App() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#061B1B] p-10 text-center overflow-hidden">
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="relative"
+          animate={{ 
+            opacity: [1, 0.2, 1],
+          }}
+          transition={{ 
+            duration: 1.5, 
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="relative mb-12"
         >
-          <div className="absolute inset-0 bg-[#10B981]/20 blur-[80px] rounded-full animate-pulse" />
-          <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-tr from-[#10B981] to-[#059669] flex items-center justify-center shadow-2xl shadow-[#10B981]/30 mb-8 border border-white/20">
-            <Zap className="w-12 h-12 text-white fill-current" />
-          </div>
+          <div className="absolute inset-0 bg-[#10B981]/10 blur-[100px] rounded-full" />
+          <svg width="240" height="240" viewBox="0 0 240 240" className="relative drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+            <circle cx="90" cy="90" r="80" stroke="#10B981" strokeWidth="1" fill="none" opacity="0.6" />
+            <circle cx="150" cy="150" r="80" stroke="#10B981" strokeWidth="1" fill="none" opacity="0.6" />
+            <path d="M90 10 A 80 80 0 0 1 170 90 A 80 80 0 0 1 90 170 A 80 80 0 0 1 10 90 A 80 80 0 0 1 90 10" stroke="#10B981" strokeWidth="0.5" fill="none" opacity="0.2" />
+          </svg>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          <h2 className="text-3xl font-black text-white tracking-tight mb-2">TASK TUNER</h2>
-          <div className="flex items-center justify-center gap-2 mb-8">
-            <div className="h-[2px] w-4 bg-[#10B981]/50 rounded-full" />
-            <p className="text-xs font-bold text-[#10B981] uppercase tracking-[0.2em]">Earn with Ease</p>
-            <div className="h-[2px] w-4 bg-[#10B981]/50 rounded-full" />
+        <div className="space-y-4">
+          <motion.div
+            key={welcomeIndex}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-2xl font-bold text-white tracking-tight uppercase">
+              {welcomeMessages[welcomeIndex]}
+            </h2>
+          </motion.div>
+          
+          <div className="flex items-center justify-center gap-2">
+            {[0, 1, 2, 3].map((i) => (
+              <motion.div
+                key={i}
+                animate={{
+                  scale: welcomeIndex === i ? [1, 1.2, 1] : 1,
+                  opacity: welcomeIndex === i ? 1 : 0.3
+                }}
+                className={`w-1.5 h-1.5 rounded-full bg-[#10B981]`}
+              />
+            ))}
           </div>
-        </motion.div>
-
-        <motion.div 
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width: "140px", opacity: 1 }}
-          transition={{ delay: 0.4, duration: 1, ease: "easeInOut" }}
-          className="h-1 bg-white/10 rounded-full overflow-hidden relative"
-        >
-          <motion.div 
-            animate={{ x: ["-100%", "100%"] }}
-            transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-[#10B981] to-transparent w-full"
-          />
-        </motion.div>
+        </div>
 
         <motion.p 
           initial={{ opacity: 0 }}
-          animate={{ opacity: 0.6 }}
-          transition={{ delay: 0.8 }}
-          className="text-[10px] text-white font-medium mt-6 uppercase tracking-widest opacity-60"
+          animate={{ opacity: 0.4 }}
+          transition={{ delay: 0.5 }}
+          className="text-[10px] text-white font-medium mt-12 uppercase tracking-[0.3em]"
         >
-          Loading your dashboard...
+          Securing Connection...
         </motion.p>
       </div>
     );
