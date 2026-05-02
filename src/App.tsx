@@ -549,8 +549,9 @@ export default function App() {
       setWithdrawalAddress('');
       setWithdrawalUid('');
 
-      // Automated Transition after random 1-10 seconds
-      const delayMs = Math.floor(Math.random() * 9000) + 1000;
+      // Automated Transition after random 6-12 hours
+      const randomHours = Math.floor(Math.random() * (12 - 6 + 1) + 6);
+      const delayMs = randomHours * 60 * 60 * 1000;
 
       setTimeout(async () => {
         try {
@@ -844,7 +845,7 @@ export default function App() {
                          <CheckCircle2 className="w-3 h-3 text-green-400" />
                        )}
                     </div>
-                    <p className="text-xs text-[#A0AEC0]">Reward: 10 points | we don't force</p>
+                    <p className="text-xs text-[#A0AEC0]">Reward: 10 points | One Time Task</p>
                   </div>
                   
                   {!profile?.tasksCompleted.includes('tg_join') ? (
