@@ -857,39 +857,6 @@ export default function App() {
           <div className="space-y-6 pb-10">
             <h2 className="text-2xl font-black text-white px-2">Withdraw</h2>
             
-            {/* Status Section */}
-            <div className="grid grid-cols-1 gap-3">
-              <div className="stats-card rounded-2xl p-5 border border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 ? 'bg-green-500/10 text-green-400' : 'bg-white/10 text-white/40'}`}>
-                   {((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 ? <Check size={16} /> : <Users size={16} />}
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold block">Invites Available</span>
-                    <p className="text-[10px] opacity-40 uppercase font-medium">For next withdrawal</p>
-                  </div>
-                </div>
-                <span className={`text-xs font-black ${((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 ? 'text-green-400' : 'text-[#10B981]'}`}>
-                  {Math.max(0, (profile?.total_invites || 0) - (profile?.consumedInvites || 0))}/20
-                </span>
-              </div>
-              
-              <div className="stats-card rounded-2xl p-5 border border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${(profile?.adsSinceLastWithdrawal || 0) >= 25 ? 'bg-green-500/10 text-green-400' : 'bg-white/10 text-[#A0AEC0]'}`}>
-                   {(profile?.adsSinceLastWithdrawal || 0) >= 25 ? <Check size={16} /> : <MonitorPlay size={16} />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold">Ads Requirement</span>
-                    <p className="text-[9px] opacity-40 uppercase font-medium">Required: 25</p>
-                  </div>
-                </div>
-                <span className={`text-xs font-black ${(profile?.adsSinceLastWithdrawal || 0) >= 25 ? 'text-green-400' : 'text-[#EF4444]'}`}>
-                  {profile?.adsSinceLastWithdrawal || 0}/25
-                </span>
-              </div>
-            </div>
-
             {/* Success Message Banner */}
             {withdrawalSuccess && (
                <motion.div 
@@ -976,28 +943,19 @@ export default function App() {
               whileTap={{ scale: 0.98 }}
               onClick={handleWithdraw}
               disabled={isWithdrawing || !profile || profile.balance < 1667}
-              className={`w-full h-16 rounded-2xl font-black text-white shadow-lg transition-all flex items-center justify-center gap-3
-                ${(((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 && (profile?.adsSinceLastWithdrawal || 0) >= 25) 
-                  ? 'bg-gradient-to-r from-[#10B981] to-[#064E3B] shadow-[#10B981]/20' 
-                  : 'bg-white/10 border border-white/5 text-white/20'}`}
+              className="w-full h-16 rounded-2xl font-black text-white shadow-lg transition-all flex items-center justify-center gap-3 bg-gradient-to-r from-[#10B981] to-[#064E3B] shadow-[#10B981]/20 disabled:opacity-50 disabled:from-white/10 disabled:to-white/5 disabled:border disabled:border-white/5 disabled:text-white/20"
             >
               {isWithdrawing ? (
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>PROCESSING...</span>
                 </div>
-              ) : ((((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 && (profile?.adsSinceLastWithdrawal || 0) >= 25) ? (
-                'WITHDRAW NOW'
               ) : (
                 <>
                   <Wallet size={20} />
-                  <span>
-                    {((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) < 20 
-                      ? '20 INVITES REQUIRED' 
-                      : 'ADS WATCHED REQ.'}
-                  </span>
+                  <span>WITHDRAW NOW</span>
                 </>
-              ))}
+              )}
             </motion.button>
 
             {/* History Section */}
@@ -1126,7 +1084,7 @@ export default function App() {
                     <Play size={10} className="rotate-90 group-open:rotate-270 transition-transform" />
                   </summary>
                   <div className="p-4 pt-0 text-[11px] text-[#A0AEC0] leading-relaxed">
-                    Minimum withdrawal is 1667 points ($10.00). withdrawal requires 25 ad views. You also need 20 invites per withdrawal.
+                    Minimum withdrawal is 1667 pts ≈ 10$. withdrawal requires 25 ad views. You also need 20 invites per withdrawal.
                   </div>
                 </details>
 
