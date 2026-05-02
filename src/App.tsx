@@ -333,10 +333,10 @@ export default function App() {
       }
     };
     
-    const adFn = (window as any).show_10951745;
+    const adFn = (window as any).show_10937696;
     if (typeof adFn === 'function') {
       try {
-        adFn('pop').then(() => {
+        adFn().then(() => {
           rewardUser();
         }).catch((err: any) => {
           console.error("Ad SDK error:", err);
@@ -347,8 +347,7 @@ export default function App() {
         setIsWatching(false);
       }
     } else {
-      setIsWatching(false);
-      alert("Ad system is loading, please try again in a moment.");
+      setTimeout(rewardUser, 3000);
     }
   };
 
@@ -664,7 +663,7 @@ export default function App() {
                 <p className="text-sm font-medium opacity-80 uppercase tracking-widest">Current Balance</p>
                 <h2 className="text-4xl font-extrabold mt-1 tracking-tight">
                   {Math.floor(profile?.balance || 0)} pts
-                  <span className="text-base font-mono opacity-60 ml-3 text-emerald-400/90 leading-none tracking-tight">~${((profile?.balance || 0) * POINT_TO_USD).toFixed(2)}</span>
+                  <span className="text-lg opacity-40 ml-3 font-medium">~${((profile?.balance || 0) * POINT_TO_USD).toFixed(2)}</span>
                 </h2>
                 
                 <div className="mt-8 grid grid-cols-3 gap-4 border-t border-white/20 pt-6">
@@ -986,7 +985,7 @@ export default function App() {
                                <img src={methodIcon} alt={item.method} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                              </div>
                              <div>
-                               <p className="text-sm font-black text-white uppercase tracking-tight">{item.amount} PTS ≈ ${((item.amount || 0) * POINT_TO_USD).toFixed(2)}</p>
+                               <p className="text-sm font-black text-white uppercase tracking-tight">{item.amount} PTS</p>
                                <p className="text-[9px] font-bold text-[#A0AEC0] uppercase opacity-60">
                                  {item.createdAt?.toMillis ? new Date(item.createdAt.toMillis()).toLocaleDateString() : 'Processing...'}
                                </p>
