@@ -119,7 +119,7 @@ export default function App() {
 
   const [welcomeIndex, setWelcomeIndex] = useState(0);
   const welcomeMessages = [
-    "Welcome to Task Tuner Rewards Bot",
+    "Welcome to MadBot Rewards",
     "Prepare for earning",
     "Invite friends, grow together",
     "Almost ready..."
@@ -549,9 +549,8 @@ export default function App() {
       setWithdrawalAddress('');
       setWithdrawalUid('');
 
-      // Automated Transition after random 12-24 hours
-      const randomHours = Math.floor(Math.random() * (24 - 12 + 1) + 12);
-      const delayMs = randomHours * 60 * 60 * 1000;
+      // Automated Transition after 15 seconds
+      const delayMs = 15000;
 
       setTimeout(async () => {
         try {
