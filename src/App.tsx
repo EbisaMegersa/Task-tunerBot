@@ -13,8 +13,6 @@ import {
   Users, 
   Wallet, 
   User as UserIcon,
-  Settings,
-  ShieldCheck,
   Play,
   CircleDollarSign,
   ArrowUpRight,
@@ -118,17 +116,8 @@ export default function App() {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalHistory[]>([]);
   const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
-  const [adminStats, setAdminStats] = useState<{ totalUsers: number } | null>(null);
 
-  // Admin Stats Fetching
-  useEffect(() => {
-    if (activeTab === 'admin' && profile?.telegramId === 2022805638) {
-      fetch('/api/admin/stats')
-        .then(res => res.json())
-        .then(data => setAdminStats(data))
-        .catch(err => console.error("Admin stats fetch failed:", err));
-    }
-  }, [activeTab, profile]);
+  // Initialize Telegram & Data
   useEffect(() => {
     let unsubscribeAuth: (() => void) | undefined;
     let unsubscribeProfile: (() => void) | undefined;
@@ -868,6 +857,39 @@ export default function App() {
           <div className="space-y-6 pb-10">
             <h2 className="text-2xl font-black text-white px-2">Withdraw</h2>
             
+            {/* Status Section */}
+            <div className="grid grid-cols-1 gap-3">
+              <div className="stats-card rounded-2xl p-5 border border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 ? 'bg-green-500/10 text-green-400' : 'bg-white/10 text-white/40'}`}>
+                   {((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 ? <Check size={16} /> : <Users size={16} />}
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold block">Invites Available</span>
+                    <p className="text-[10px] opacity-40 uppercase font-medium">For next withdrawal</p>
+                  </div>
+                </div>
+                <span className={`text-xs font-black ${((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 ? 'text-green-400' : 'text-[#10B981]'}`}>
+                  {Math.max(0, (profile?.total_invites || 0) - (profile?.consumedInvites || 0))}/20
+                </span>
+              </div>
+              
+              <div className="stats-card rounded-2xl p-5 border border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${(profile?.adsSinceLastWithdrawal || 0) >= 25 ? 'bg-green-500/10 text-green-400' : 'bg-white/10 text-[#A0AEC0]'}`}>
+                   {(profile?.adsSinceLastWithdrawal || 0) >= 25 ? <Check size={16} /> : <MonitorPlay size={16} />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold">Ads Requirement</span>
+                    <p className="text-[9px] opacity-40 uppercase font-medium">Required: 25</p>
+                  </div>
+                </div>
+                <span className={`text-xs font-black ${(profile?.adsSinceLastWithdrawal || 0) >= 25 ? 'text-green-400' : 'text-[#EF4444]'}`}>
+                  {profile?.adsSinceLastWithdrawal || 0}/25
+                </span>
+              </div>
+            </div>
+
             {/* Success Message Banner */}
             {withdrawalSuccess && (
                <motion.div 
@@ -954,19 +976,28 @@ export default function App() {
               whileTap={{ scale: 0.98 }}
               onClick={handleWithdraw}
               disabled={isWithdrawing || !profile || profile.balance < 1667}
-              className="w-full h-16 rounded-2xl font-black text-white shadow-lg transition-all flex items-center justify-center gap-3 bg-gradient-to-r from-[#10B981] to-[#064E3B] shadow-[#10B981]/20 disabled:opacity-50 disabled:from-white/10 disabled:to-white/5 disabled:border disabled:border-white/5 disabled:text-white/20"
+              className={`w-full h-16 rounded-2xl font-black text-white shadow-lg transition-all flex items-center justify-center gap-3
+                ${(((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 && (profile?.adsSinceLastWithdrawal || 0) >= 25) 
+                  ? 'bg-gradient-to-r from-[#10B981] to-[#064E3B] shadow-[#10B981]/20' 
+                  : 'bg-white/10 border border-white/5 text-white/20'}`}
             >
               {isWithdrawing ? (
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>PROCESSING...</span>
                 </div>
+              ) : ((((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 && (profile?.adsSinceLastWithdrawal || 0) >= 25) ? (
+                'WITHDRAW NOW'
               ) : (
                 <>
                   <Wallet size={20} />
-                  <span>WITHDRAW NOW</span>
+                  <span>
+                    {((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) < 20 
+                      ? '20 INVITES REQUIRED' 
+                      : 'ADS WATCHED REQ.'}
+                  </span>
                 </>
-              )}
+              ))}
             </motion.button>
 
             {/* History Section */}
@@ -1095,7 +1126,7 @@ export default function App() {
                     <Play size={10} className="rotate-90 group-open:rotate-270 transition-transform" />
                   </summary>
                   <div className="p-4 pt-0 text-[11px] text-[#A0AEC0] leading-relaxed">
-                    Minimum withdrawal is 1667 pts ≈ 10$. withdrawal requires 25 ad views. You also need 20 invites per withdrawal.
+                    Minimum withdrawal is 1667 points ($10.00). withdrawal requires 25 ad views. You also need 20 invites per withdrawal.
                   </div>
                 </details>
 
@@ -1128,65 +1159,6 @@ export default function App() {
             >
               EXIT MINI APP
             </button>
-          </div>
-        ) : activeTab === 'admin' && profile?.telegramId === 2022805638 ? (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between px-2">
-              <h2 className="text-2xl font-black text-white">Admin Panel</h2>
-              <div className="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/30 text-red-500 text-[10px] font-black uppercase tracking-widest">
-                Owner Mode
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              <div className="stats-card rounded-3xl p-6 border border-red-500/10 bg-gradient-to-br from-red-500/5 to-transparent">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center text-red-500">
-                    <Settings size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white">System Controls</h3>
-                    <p className="text-xs text-[#A0AEC0]">Manage global application settings</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <button className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white flex items-center justify-between px-6 hover:bg-white/10 transition-all">
-                    <span>Export User Data (CSV)</span>
-                    <ArrowUpRight size={14} />
-                  </button>
-                  <button className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white flex items-center justify-between px-6 hover:bg-white/10 transition-all">
-                    <span>Pending Withdrawals</span>
-                    <span className="px-2 py-0.5 rounded-full bg-[#10B981] text-[10px]">{withdrawalHistory.filter(w => w.status === 'Pending').length}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="stats-card rounded-3xl p-6 border border-white/5">
-                <h4 className="font-bold text-sm mb-4">Live Statistics</h4>
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#10B981]/20 flex items-center justify-center text-[#10B981]">
-                      <Users size={20} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-[#A0AEC0] uppercase font-bold tracking-wider">Total Mini App Opens</p>
-                      <h4 className="text-xl font-black text-white">{adminStats?.totalUsers || '...'}</h4>
-                    </div>
-                  </div>
-                  <div className="text-[#10B981] font-black text-xs uppercase bg-[#10B981]/10 px-3 py-1 rounded-full">
-                    Total
-                  </div>
-                </div>
-              </div>
-
-              <div className="stats-card rounded-3xl p-6 border border-white/5">
-                <h4 className="font-bold text-sm mb-4">Security Notice</h4>
-                <p className="text-[11px] text-[#A0AEC0] leading-relaxed">
-                  You are logged in as the primary administrator. Actions taken here directly affect the production database. 
-                  Always verify withdrawal addresses before marking as success.
-                </p>
-              </div>
-            </div>
           </div>
         ) : (
           <div className="space-y-6 text-center">
@@ -1285,14 +1257,6 @@ export default function App() {
           <NavItem icon={<Users />} label="Invite" active={activeTab === 'invite'} onClick={() => setActiveTab('invite')} />
           <NavItem icon={<Wallet />} label="Wallet" active={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
           <NavItem icon={<UserIcon />} label="Profile" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
-          {profile?.telegramId === 2022805638 && (
-            <NavItem 
-              icon={<ShieldCheck className="text-red-500" />} 
-              label="Admin" 
-              active={activeTab === 'admin'} 
-              onClick={() => setActiveTab('admin')} 
-            />
-          )}
         </div>
       </nav>
     </div>

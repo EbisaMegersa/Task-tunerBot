@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TASK TUNER</title>
+    <title>Jaallatamaa Rewards</title>
     <script>
       (function() {
         var highVersion = '8.0';
@@ -24,41 +24,51 @@
         function patchWebApp(obj) {
           if (!obj) return;
           try {
-            // Force higher version to enable all features
             Object.defineProperty(obj, 'version', { 
               value: highVersion, 
-              enumerable: true,
+              writable: false, 
               configurable: true 
             });
-            obj.isVersionAtLeast = function() { return true; };
-            
+            Object.defineProperty(obj, 'isVersionAtLeast', { 
+              value: function() { return true; }, 
+              writable: false, 
+              configurable: true 
+            });
             if (!obj.CloudStorage) {
-              obj.CloudStorage = mockStorage;
+              Object.defineProperty(obj, 'CloudStorage', { 
+                value: mockStorage, 
+                writable: true, 
+                configurable: true 
+              });
             }
             if (!obj.showPopup) {
-              obj.showPopup = mockShowPopup;
+              Object.defineProperty(obj, 'showPopup', { 
+                value: mockShowPopup, 
+                writable: true, 
+                configurable: true 
+              });
             }
             if (obj.initDataUnsafe) obj.initDataUnsafe.version = highVersion;
-          } catch (e) {
-            console.warn("WebApp patch error:", e);
-          }
+          } catch (e) {}
         }
 
-        // Pre-configure Telegram
-        window.Telegram = window.Telegram || {};
-        window.Telegram.WebApp = window.Telegram.WebApp || {};
-        patchWebApp(window.Telegram.WebApp);
+        // Pre-define Telegram with a getter/setter to catch WebApp assignment
+        var _tp = {};
+        Object.defineProperty(window, 'Telegram', {
+          get: function() { return _tp; },
+          set: function(val) {
+            _tp = val || {};
+            if (_tp.WebApp) patchWebApp(_tp.WebApp);
+          },
+          configurable: true
+        });
 
-        // Periodic maintenance to ensure mocks persist through Telegram init
-        var checkCount = 0;
-        var patchInterval = setInterval(function() {
-          if (window.Telegram && window.Telegram.WebApp) {
-            if (window.Telegram.WebApp.version !== highVersion || !window.Telegram.WebApp.CloudStorage) {
-              patchWebApp(window.Telegram.WebApp);
-            }
+        // Periodic check just in case
+        setInterval(function() {
+          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.version !== highVersion) {
+            patchWebApp(window.Telegram.WebApp);
           }
-          if (++checkCount > 100) clearInterval(patchInterval);
-        }, 50);
+        }, 100);
       })();
     </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
