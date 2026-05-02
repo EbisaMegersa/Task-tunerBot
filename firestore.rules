@@ -39,13 +39,11 @@ service cloud.firestore {
       allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
       
       allow update: if isOwner(userId) && isValidId(userId) && (
-        // Action: Owner self-update (Partial or Full)
-        incoming().updatedAt == request.time &&
-        incoming().username == existing().username &&
-        incoming().telegramId == existing().telegramId &&
+        // Action: Owner self-update
+        incoming().get('updatedAt', request.time) == request.time &&
         (
           isValidUser(incoming()) || 
-          incoming().diff(existing()).affectedKeys().hasAny(['consumedInvites', 'updatedAt', 'has_withdrawn', 'adsSinceLastWithdrawal', 'balance', 'dailyStreak', 'lastDailyClaim', 'tasksCompleted', 'adsWatched'])
+          incoming().diff(existing()).affectedKeys().hasAny(['consumedInvites', 'updatedAt', 'has_withdrawn', 'adsSinceLastWithdrawal', 'balance', 'dailyStreak', 'lastDailyClaim', 'tasksCompleted', 'adsWatched', 'referralsCount', 'total_invites', 'referralEarnings'])
         )
       ) || (
         // Action: Referral Reward (50 points from another user)

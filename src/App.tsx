@@ -100,10 +100,6 @@ interface UserData {
   username: string;
 }
 
-// --- AD CONFIGURATION ---
-const MONETAG_ZONE_ID = '10951745'; // Monetag Zone ID
-const AD_REWARD_POINTS = 2; // Points per ad
-
 export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -337,14 +333,12 @@ export default function App() {
         await updateDoc(doc(db, userDocPath), {
           adsWatched: increment(1),
           adsSinceLastWithdrawal: increment(1),
-          balance: increment(AD_REWARD_POINTS),
+          balance: increment(2), // 2 points per ad
           updatedAt: serverTimestamp()
         });
         
         try {
           (window as any).Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-          // showAlert is often buggy across versions, use alert or notification state instead
-          alert(`Reward Claimed! +${AD_REWARD_POINTS} points`);
         } catch {}
       } catch (error) {
         handleFirestoreError(error, OperationType.UPDATE, userDocPath);
@@ -353,60 +347,27 @@ export default function App() {
       }
     };
     
-    // Monetag function naming convention: show_ZONEID
-    const adFnName = `show_${MONETAG_ZONE_ID}`;
-    
-    // Function to check and run ad
-    const tryRunAd = (retries = 0) => {
-      // Debug logs to help identify the issue in console
-      const adFn = (window as any)[adFnName];
-      console.log(`[AdSystem] Checking for ${adFnName}, attempt ${retries + 1}. Type: ${typeof adFn}`);
-      
-      if (typeof adFn === 'function') {
-        try {
-          // Some Monetag tags require 'pop' or other parameters
-          const call = adFn('pop');
-          
-          if (call && typeof call.then === 'function') {
-            call.then(() => {
-              rewardUser();
-            }).catch((err: any) => {
-              console.warn("Monetag Ad failed or skipped:", err);
-              setIsWatching(false);
-              alert("Ad was not completed. Please watch until the end to earn points.");
-            });
-          } else {
-            // If it doesn't return a promise, it might have executed synchronously or failed
-            console.warn("Monetag call did not return a promise.");
-            setIsWatching(false);
-            alert("External ad provider error. Try again.");
+    const adFn = (window as any).show_10951745;
+    if (typeof adFn === 'function') {
+      try {
+        adFn().then(() => {
+          try {
+            (window as any).Telegram?.WebApp?.showAlert('You have seen an ad!');
+          } catch {
+            alert('You have seen an ad!');
           }
-        } catch (err) {
-          console.error("Ad call error:", err);
+          rewardUser();
+        }).catch((err: any) => {
+          console.error("Ad SDK error:", err);
           setIsWatching(false);
-        }
-      } else if (retries < 10) {
-        // Increase retries to 10 with 500ms (5 seconds total)
-        console.log(`Ad function ${adFnName} not found yet, retrying...`);
-        setTimeout(() => tryRunAd(retries + 1), 700);
-      } else {
-        console.error(`Monetag Ad Function ${adFnName} not found after retries.`);
+        });
+      } catch (err) {
+        console.error("Ad SDK sync error:", err);
         setIsWatching(false);
-        
-        // Show a more helpful message
-        const availableShows = Object.keys(window).filter(k => k.startsWith('show_'));
-        console.log("Available show_ functions:", availableShows);
-        
-        alert("Ad system is still loading. Please wait 10 seconds and try again.");
-        
-        // If we found a different show_ function, we might want to log it for the user
-        if (availableShows.length > 0) {
-          console.log(`Found alternative functions: ${availableShows.join(', ')}`);
-        }
       }
-    };
-
-    tryRunAd();
+    } else {
+      setTimeout(rewardUser, 3000);
+    }
   };
 
   const handleDailyCheckIn = async () => {
@@ -890,7 +851,7 @@ export default function App() {
                          <CheckCircle2 className="w-3 h-3 text-green-400" />
                        )}
                     </div>
-                    <p className="text-xs text-[#A0AEC0]">Reward: 10 points | Be active</p>
+                    <p className="text-xs text-[#A0AEC0]">Reward: 10 points | Be active Ebisa</p>
                   </div>
                   
                   {!profile?.tasksCompleted.includes('tg_join') ? (

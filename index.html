@@ -3,17 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Task Tuner</title>
-    <!-- MONETAG SCRIPT -->
-    <script src="https://alwingulla.com/88/pfe/current/tag.min.js?z=10951745" data-cfasync="false" async></script>
-    <script>
-      // Debug helper to check ad script status
-      window.addEventListener('load', function() {
-        console.log('[DEBUG] Window loaded. Checking show_10951745:', typeof window.show_10951745);
-      });
-    </script>
+    <title>Jaallatamaa Rewards</title>
     <script>
       (function() {
+        // Suppress Telegram WebApp SDK version support error messages
+        var originalError = console.error;
+        console.error = function() {
+          if (arguments[0] && typeof arguments[0] === 'string' && (arguments[0].indexOf('is not supported') !== -1)) {
+            return;
+          }
+          originalError.apply(console, arguments);
+        };
+
         var highVersion = '8.0';
         var mockStorage = {
           setItem: function(k, v, cb) { if(cb) cb(null, true); return this; },
@@ -21,7 +22,8 @@
           getItems: function(ks, cb) { if(cb) cb(null, {}); return this; },
           removeItem: function(k, cb) { if(cb) cb(null, true); return this; },
           removeItems: function(ks, cb) { if(cb) cb(null, true); return this; },
-          getKeys: function(cb) { if(cb) cb(null, []); return this; }
+          getKeys: function(cb) { if(cb) cb(null, []); return this; },
+          mocked: true
         };
 
         var mockShowPopup = function(params, callback) {
@@ -42,26 +44,33 @@
               writable: false, 
               configurable: true 
             });
-            if (!obj.CloudStorage) {
-              Object.defineProperty(obj, 'CloudStorage', { 
-                value: mockStorage, 
-                writable: true, 
-                configurable: true 
-              });
-            }
-            if (!obj.showPopup) {
-              Object.defineProperty(obj, 'showPopup', { 
-                value: mockShowPopup, 
-                writable: true, 
-                configurable: true 
-              });
-            }
+            Object.defineProperty(obj, 'CloudStorage', { 
+              value: mockStorage, 
+              writable: false, 
+              configurable: true 
+            });
+            Object.defineProperty(obj, 'showPopup', { 
+              value: mockShowPopup, 
+              writable: false, 
+              configurable: true 
+            });
             if (obj.initDataUnsafe) obj.initDataUnsafe.version = highVersion;
-          } catch (e) {}
+          } catch (e) {
+            // Silently fail if non-configurable
+          }
         }
 
-        // Pre-define Telegram with a getter/setter to catch WebApp assignment
-        var _tp = {};
+        // Periodic check to ensure the version and mock stay patched
+        setInterval(function() {
+          if (window.Telegram && window.Telegram.WebApp) {
+             if (window.Telegram.WebApp.version !== highVersion || !window.Telegram.WebApp.CloudStorage || !window.Telegram.WebApp.CloudStorage.mocked) {
+               patchWebApp(window.Telegram.WebApp);
+             }
+          }
+        }, 30);
+
+        // Define Telegram with a robust getter/setter to catch WebApp initialization
+        var _tp = window.Telegram || {};
         Object.defineProperty(window, 'Telegram', {
           get: function() { return _tp; },
           set: function(val) {
@@ -70,16 +79,10 @@
           },
           configurable: true
         });
-
-        // Periodic check just in case
-        setInterval(function() {
-          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.version !== highVersion) {
-            patchWebApp(window.Telegram.WebApp);
-          }
-        }, 100);
       })();
     </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src='https://libtl.com/sdk.js' data-zone='10951745' data-sdk='show_10951745'></script>
   </head>
   <body>
     <div id="root"></div>
