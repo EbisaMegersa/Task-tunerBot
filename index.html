@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jaallatamaa Rewards</title>
+    <script>
+      (function() {
+        var highVersion = '8.0';
+        var mockStorage = {
+          setItem: function(k, v, cb) { if(cb) cb(null, true); return this; },
+          getItem: function(k, cb) { if(cb) cb(null, null); return this; },
+          getItems: function(ks, cb) { if(cb) cb(null, {}); return this; },
+          removeItem: function(k, cb) { if(cb) cb(null, true); return this; },
+          removeItems: function(ks, cb) { if(cb) cb(null, true); return this; },
+          getKeys: function(cb) { if(cb) cb(null, []); return this; }
+        };
+
+        var mockShowPopup = function(params, callback) {
+          console.log('Mocked showPopup call suppressed:', params);
+          if (callback) callback(params.buttons ? params.buttons[0].id : null);
+        };
+
+        function patchWebApp(obj) {
+          if (!obj) return;
+          try {
+            Object.defineProperty(obj, 'version', { 
+              value: highVersion, 
+              writable: false, 
+              configurable: true 
+            });
+            Object.defineProperty(obj, 'isVersionAtLeast', { 
+              value: function() { return true; }, 
+              writable: false, 
+              configurable: true 
+            });
+            if (!obj.CloudStorage) {
+              Object.defineProperty(obj, 'CloudStorage', { 
+                value: mockStorage, 
+                writable: true, 
+                configurable: true 
+              });
+            }
+            if (!obj.showPopup) {
+              Object.defineProperty(obj, 'showPopup', { 
+                value: mockShowPopup, 
+                writable: true, 
+                configurable: true 
+              });
+            }
+            if (obj.initDataUnsafe) obj.initDataUnsafe.version = highVersion;
+          } catch (e) {}
+        }
+
+        // Pre-define Telegram with a getter/setter to catch WebApp assignment
+        var _tp = {};
+        Object.defineProperty(window, 'Telegram', {
+          get: function() { return _tp; },
+          set: function(val) {
+            _tp = val || {};
+            if (_tp.WebApp) patchWebApp(_tp.WebApp);
+          },
+          configurable: true
+        });
+
+        // Periodic check just in case
+        setInterval(function() {
+          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.version !== highVersion) {
+            patchWebApp(window.Telegram.WebApp);
+          }
+        }, 100);
+      })();
+    </script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src='https://libtl.com/sdk.js' data-zone='10937696' data-sdk='show_10937696'></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
