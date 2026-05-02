@@ -116,6 +116,15 @@ async function startServer() {
     res.json({ status: "ok", botActive: !!bot });
   });
 
+  app.get("/api/admin/stats", (req, res) => {
+    try {
+      const { count } = getUserCount.get() as { count: number };
+      res.json({ totalUsers: count });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
   // Development vs Production serving
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

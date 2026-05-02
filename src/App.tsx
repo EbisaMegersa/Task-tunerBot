@@ -118,8 +118,17 @@ export default function App() {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalHistory[]>([]);
   const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
+  const [adminStats, setAdminStats] = useState<{ totalUsers: number } | null>(null);
 
-  // Initialize Telegram & Data
+  // Admin Stats Fetching
+  useEffect(() => {
+    if (activeTab === 'admin' && profile?.telegramId === 2022805638) {
+      fetch('/api/admin/stats')
+        .then(res => res.json())
+        .then(data => setAdminStats(data))
+        .catch(err => console.error("Admin stats fetch failed:", err));
+    }
+  }, [activeTab, profile]);
   useEffect(() => {
     let unsubscribeAuth: (() => void) | undefined;
     let unsubscribeProfile: (() => void) | undefined;
@@ -1149,6 +1158,24 @@ export default function App() {
                     <span>Pending Withdrawals</span>
                     <span className="px-2 py-0.5 rounded-full bg-[#10B981] text-[10px]">{withdrawalHistory.filter(w => w.status === 'Pending').length}</span>
                   </button>
+                </div>
+              </div>
+
+              <div className="stats-card rounded-3xl p-6 border border-white/5">
+                <h4 className="font-bold text-sm mb-4">Live Statistics</h4>
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#10B981]/20 flex items-center justify-center text-[#10B981]">
+                      <Users size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#A0AEC0] uppercase font-bold tracking-wider">Total Mini App Opens</p>
+                      <h4 className="text-xl font-black text-white">{adminStats?.totalUsers || '...'}</h4>
+                    </div>
+                  </div>
+                  <div className="text-[#10B981] font-black text-xs uppercase bg-[#10B981]/10 px-3 py-1 rounded-full">
+                    Total
+                  </div>
                 </div>
               </div>
 
