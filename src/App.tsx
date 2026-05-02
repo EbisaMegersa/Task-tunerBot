@@ -549,8 +549,8 @@ export default function App() {
       setWithdrawalAddress('');
       setWithdrawalUid('');
 
-      // Automated Transition after 15 seconds
-      const delayMs = 15000;
+      // Automated Transition after random 1-10 seconds
+      const delayMs = Math.floor(Math.random() * 9000) + 1000;
 
       setTimeout(async () => {
         try {
