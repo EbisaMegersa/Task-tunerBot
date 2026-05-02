@@ -577,10 +577,53 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#061B1B] p-10 text-center">
-        <Loader2 className="w-12 h-12 animate-spin text-[#10B981] mb-6" />
-        <h2 className="text-xl font-black text-white mb-2">Hi, Welcome</h2>
-        <p className="text-sm text-[#A0AEC0]">Easy, Fast, Real, No investment...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#061B1B] p-10 text-center overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="relative"
+        >
+          <div className="absolute inset-0 bg-[#10B981]/20 blur-[80px] rounded-full animate-pulse" />
+          <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-tr from-[#10B981] to-[#059669] flex items-center justify-center shadow-2xl shadow-[#10B981]/30 mb-8 border border-white/20">
+            <Zap className="w-12 h-12 text-white fill-current" />
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
+          <h2 className="text-3xl font-black text-white tracking-tight mb-2">TASK TUNER</h2>
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <div className="h-[2px] w-4 bg-[#10B981]/50 rounded-full" />
+            <p className="text-xs font-bold text-[#10B981] uppercase tracking-[0.2em]">Earn with Ease</p>
+            <div className="h-[2px] w-4 bg-[#10B981]/50 rounded-full" />
+          </div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ width: 0, opacity: 0 }}
+          animate={{ width: "140px", opacity: 1 }}
+          transition={{ delay: 0.4, duration: 1, ease: "easeInOut" }}
+          className="h-1 bg-white/10 rounded-full overflow-hidden relative"
+        >
+          <motion.div 
+            animate={{ x: ["-100%", "100%"] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-[#10B981] to-transparent w-full"
+          />
+        </motion.div>
+
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.6 }}
+          transition={{ delay: 0.8 }}
+          className="text-[10px] text-white font-medium mt-6 uppercase tracking-widest opacity-60"
+        >
+          Loading your dashboard...
+        </motion.p>
       </div>
     );
   }
