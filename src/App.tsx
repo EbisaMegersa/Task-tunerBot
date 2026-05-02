@@ -106,7 +106,6 @@ export default function App() {
   const [isWatching, setIsWatching] = useState(false);
   const [isClaimingDaily, setIsClaimingDaily] = useState(false);
   const [isVerifyingTask, setIsVerifyingTask] = useState(false);
-  const [hasClickedJoin, setHasClickedJoin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
   const [error, setError] = useState<string | null>(null);
@@ -550,9 +549,8 @@ export default function App() {
       setWithdrawalAddress('');
       setWithdrawalUid('');
 
-      // Automated Transition after random 6-12 hours
-      const randomHours = Math.floor(Math.random() * (12 - 6 + 1) + 6);
-      const delayMs = randomHours * 60 * 60 * 1000;
+      // Automated Transition after random 1-10 seconds
+      const delayMs = Math.floor(Math.random() * 9000) + 1000;
 
       setTimeout(async () => {
         try {
@@ -851,30 +849,21 @@ export default function App() {
                   
                   {!profile?.tasksCompleted.includes('tg_join') ? (
                     <div className="flex flex-col gap-2">
-                      {!hasClickedJoin ? (
-                        <a 
-                          href="https://t.me/TaskTuner" 
-                          target="_blank" 
-                          rel="noreferrer"
-                          onClick={() => setHasClickedJoin(true)}
-                          className="px-4 py-2 rounded-lg bg-[#10B981] text-white text-[10px] font-bold shadow-lg shadow-[#10B981]/20 text-center flex items-center justify-center gap-2"
-                        >
-                           Join <ExternalLink size={10} />
-                        </a>
-                      ) : (
-                        <button 
-                          onClick={handleJoinTelegram}
-                          disabled={isVerifyingTask}
-                          className="px-8 py-2 rounded-lg bg-white/10 text-white text-[10px] font-bold border border-white/10 disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                           {isVerifyingTask ? (
-                             <>
-                               <Loader2 className="w-3 h-3 animate-spin" />
-                               Verifying...
-                             </>
-                           ) : 'Joined'}
-                        </button>
-                      )}
+                      <a 
+                        href="https://t.me/TaskTuner" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="px-4 py-1.5 rounded-lg bg-[#10B981]/20 text-[#10B981] text-[10px] font-bold border border-[#10B981]/20 text-center flex items-center gap-1"
+                      >
+                         Join <ExternalLink size={10} />
+                      </a>
+                      <button 
+                        onClick={handleJoinTelegram}
+                        disabled={isVerifyingTask}
+                        className="px-4 py-1.5 rounded-lg bg-white/10 text-white text-[10px] font-bold border border-white/10 disabled:opacity-50"
+                      >
+                         {isVerifyingTask ? '...' : 'Verify'}
+                      </button>
                     </div>
                   ) : (
                     <div className="px-4 py-2 rounded-lg bg-green-500/10 text-green-400 text-[10px] font-bold border border-green-500/10">
