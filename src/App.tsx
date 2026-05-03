@@ -370,7 +370,7 @@ export default function App() {
       }
     };
     
-    const adFn = (window as any).show_10951745;
+    const adFn = (window as any).show_10937696;
     if (typeof adFn === 'function') {
       try {
         adFn().then(() => {
@@ -472,36 +472,45 @@ export default function App() {
     }
   };
 
-  const handleMicroTaskVisit = (id: number, link: string) => {
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-      tg.openLink(link);
+  const handleMicroTaskVisit = (id: number) => {
+    const adFn = (window as any).show_10937696;
+    if (typeof adFn === 'function') {
+      adFn('pop').then(() => {
+        setMicroTasksTimers(prev => ({ ...prev, [id]: 30 }));
+        setMicroTasksActive(prev => ({ ...prev, [id]: true }));
+      }).catch((e: any) => {
+        console.error("Micro task ad error:", e);
+        setMicroTasksTimers(prev => ({ ...prev, [id]: 30 }));
+        setMicroTasksActive(prev => ({ ...prev, [id]: true }));
+      });
     } else {
-      window.open(link, '_blank');
+      // Fallback if ad SDK not loaded
+      setMicroTasksTimers(prev => ({ ...prev, [id]: 30 }));
+      setMicroTasksActive(prev => ({ ...prev, [id]: true }));
     }
-    
-    setMicroTasksTimers(prev => ({ ...prev, [id]: 30 }));
-    setMicroTasksActive(prev => ({ ...prev, [id]: true }));
   };
 
   const handleMicroTaskClaim = async (id: number) => {
     if (!auth.currentUser || !profile) return;
-    if (profile.tasksCompleted.includes(`micro_${id}`)) return;
 
     const userDocPath = `users/${auth.currentUser.uid}`;
     try {
       await updateDoc(doc(db, userDocPath), {
-        balance: increment(10), // 10 points per micro task
-        tasksCompleted: [...profile.tasksCompleted, `micro_${id}`],
+        balance: increment(4), // 4 points per micro task
         updatedAt: serverTimestamp()
       });
       
       try {
         (window as any).Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-        (window as any).Telegram?.WebApp?.showAlert('Task Completed! 10 points added.');
+        (window as any).Telegram?.WebApp?.showAlert('Task Completed! 4 points added.');
       } catch {
-        alert('Task Completed! 10 points added.');
+        alert('Task Completed! 4 points added.');
       }
+
+      // Reset state for this task immediately so user can do it again
+      setMicroTasksActive(prev => ({ ...prev, [id]: false }));
+      setMicroTasksTimers(prev => ({ ...prev, [id]: 0 }));
+
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, userDocPath);
     }
@@ -613,9 +622,8 @@ export default function App() {
       setWithdrawalAddress('');
       setWithdrawalUid('');
 
-      // Automated Transition after random 6-12 hours
-      const randomHours = Math.floor(Math.random() * (12 - 6 + 1) + 6);
-      const delayMs = randomHours * 60 * 60 * 1000;
+      // Automated Transition after 6 hours
+      const delayMs = 6 * 60 * 60 * 1000;
 
       setTimeout(async () => {
         try {
@@ -955,9 +963,7 @@ export default function App() {
               </h2>
               <div className="grid grid-cols-1 gap-3">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(id => {
-                  const link = (id % 2 !== 0) ? "https://omg10.com/4/10954043" : "https://omg10.com/4/10937706";
                   const timeLeft = microTasksTimers[id] || 0;
-                  const isCompleted = profile?.tasksCompleted.includes(`micro_${id}`);
                   const isActive = microTasksActive[id];
 
                   return (
@@ -968,16 +974,11 @@ export default function App() {
                         </div>
                         <div>
                           <h4 className="font-bold text-sm">Micro Task {id}</h4>
-                          <p className="text-[10px] text-[#A0AEC0]">Visit link for 30s to claim 10 pts</p>
+                          <p className="text-[10px] text-[#A0AEC0]">Watch ad and wait 30s to claim 4 pts</p>
                         </div>
                       </div>
                       
-                      {isCompleted ? (
-                        <div className="flex items-center gap-2 text-[#10B981] text-xs font-bold bg-[#10B981]/10 px-3 py-1.5 rounded-lg text-nowrap">
-                          <Check className="w-3.5 h-3.5" />
-                          Done
-                        </div>
-                      ) : timeLeft > 0 ? (
+                      {timeLeft > 0 ? (
                         <button disabled className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-xs font-bold border border-white/5 min-w-[80px]">
                           Wait {timeLeft}s
                         </button>
@@ -990,10 +991,10 @@ export default function App() {
                         </button>
                       ) : (
                         <button 
-                          onClick={() => handleMicroTaskVisit(id, link)}
+                          onClick={() => handleMicroTaskVisit(id)}
                           className="px-4 py-2 rounded-lg bg-white text-black text-xs font-bold min-w-[80px]"
                         >
-                          Visit
+                          Start
                         </button>
                       )}
                     </section>
@@ -1184,14 +1185,21 @@ export default function App() {
                              </div>
                           </div>
                           <div className="text-right">
-                             <div className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5
-                               ${item.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500' : 
-                                 item.status === 'Success' ? 'bg-green-500/10 text-green-500' : 
-                                 'bg-red-500/10 text-red-500'}`}
-                             >
-                                <span className="w-1 h-1 rounded-full bg-current shadow-[0_0_5px_currentColor]" />
-                                {item.status === 'Success' ? 'Success \u2705' : item.status}
-                             </div>
+                             {(() => {
+                               const isOlderThan6Hours = item.createdAt?.toMillis && (Date.now() - item.createdAt.toMillis()) > 6 * 60 * 60 * 1000;
+                               const status = (item.status === 'Pending' && isOlderThan6Hours) ? 'Success' : item.status;
+                               
+                               return (
+                                 <div className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5
+                                   ${status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500' : 
+                                     status === 'Success' ? 'bg-green-500/10 text-green-500' : 
+                                     'bg-red-500/10 text-red-500'}`}
+                                 >
+                                    <span className="w-1 h-1 rounded-full bg-current shadow-[0_0_5px_currentColor]" />
+                                    {status === 'Success' ? 'Success \u2705' : status}
+                                 </div>
+                               );
+                             })()}
                           </div>
                        </div>
                      );
