@@ -916,7 +916,7 @@ export default function App() {
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => {
-                          const link = 'https://t.me/jaallatamaa';
+                          const link = 'https://t.me/tasktuner';
                           try {
                             (window as any).Telegram?.WebApp?.openTelegramLink(link);
                           } catch {
