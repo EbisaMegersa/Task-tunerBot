@@ -44,6 +44,7 @@ interface UserProfile {
   invitedBy: string | null;
   has_withdrawn: boolean;
   adsSinceLastWithdrawal: number;
+  microTasksCompleted: number;
 }
 
 interface WithdrawalHistory {
@@ -215,7 +216,8 @@ export default function App() {
                 referralEarnings: data.referralEarnings || 0,
                 invitedBy: data.invitedBy || null,
                 has_withdrawn: data.has_withdrawn || false,
-                adsSinceLastWithdrawal: data.adsSinceLastWithdrawal || 0
+                adsSinceLastWithdrawal: data.adsSinceLastWithdrawal || 0,
+                microTasksCompleted: data.microTasksCompleted || 0
               });
             setLoading(false);
           } else {
@@ -278,6 +280,7 @@ export default function App() {
                 invitedBy: inviterIdStr,
                 has_withdrawn: false,
                 adsSinceLastWithdrawal: 0,
+                microTasksCompleted: 0,
                 updatedAt: serverTimestamp()
               };
               await setDoc(doc(db, userDocPath), initialProfile);
@@ -497,6 +500,7 @@ export default function App() {
     try {
       await updateDoc(doc(db, userDocPath), {
         balance: increment(4), // 4 points per micro task
+        microTasksCompleted: increment(1),
         updatedAt: serverTimestamp()
       });
       
@@ -813,7 +817,7 @@ export default function App() {
                   </div>
                   <div className="text-center">
                     <p className="text-[10px] uppercase font-bold opacity-60 tracking-wider">Tasks Done</p>
-                    <p className="text-sm font-bold mt-1">{profile?.tasksCompleted.length || 0}</p>
+                    <p className="text-sm font-bold mt-1">{(profile?.tasksCompleted.length || 0) + (profile?.microTasksCompleted || 0)}</p>
                   </div>
                 </div>
               </div>
@@ -1224,11 +1228,15 @@ export default function App() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 mb-8">
+                  <div className="grid grid-cols-2 gap-3 mb-8">
                   <div className="bg-black/30 p-4 rounded-2xl border border-white/5">
                     <p className="text-[10px] font-black opacity-40 uppercase tracking-widest text-[#A0AEC0]">Balance</p>
                     <p className="text-xl font-black text-white mt-1">{Math.floor(profile?.balance || 0)} pts</p>
                     <p className="text-[10px] text-[#10B981] font-bold">${((profile?.balance || 0) * POINT_TO_USD).toFixed(2)}</p>
+                  </div>
+                  <div className="bg-black/30 p-4 rounded-2xl border border-white/5">
+                    <p className="text-[10px] font-black opacity-40 uppercase tracking-widest text-[#A0AEC0]">Tasks Done</p>
+                    <p className="text-xl font-black text-white mt-1">{(profile?.tasksCompleted.length || 0) + (profile?.microTasksCompleted || 0)}</p>
                   </div>
                   <div className="bg-black/30 p-4 rounded-2xl border border-white/5">
                     <p className="text-[10px] font-black opacity-40 uppercase tracking-widest text-[#A0AEC0]">Invites</p>
@@ -1238,8 +1246,8 @@ export default function App() {
                     <p className="text-[10px] font-black opacity-40 uppercase tracking-widest text-[#A0AEC0]">Total Ads</p>
                     <p className="text-xl font-black text-white mt-1">{profile?.adsWatched || 0}</p>
                   </div>
-                  <div className="bg-black/30 p-4 rounded-2xl border border-white/5">
-                    <p className="text-[10px] font-black opacity-40 uppercase tracking-widest text-[#A0AEC0]">Current Ads</p>
+                  <div className="bg-black/30 p-4 rounded-2xl border border-white/5 col-span-2">
+                    <p className="text-[10px] font-black opacity-40 uppercase tracking-widest text-[#A0AEC0]">Current Ads (Since last withdrawal)</p>
                     <p className="text-xl font-black text-[#10B981] mt-1">{profile?.adsSinceLastWithdrawal || 0}</p>
                   </div>
                 </div>
