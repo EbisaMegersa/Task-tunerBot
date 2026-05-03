@@ -118,6 +118,10 @@ export default function App() {
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalHistory[]>([]);
   const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
 
+  // Micro Tasks State
+  const [microTasksTimers, setMicroTasksTimers] = useState<Record<number, number>>({});
+  const [microTasksActive, setMicroTasksActive] = useState<Record<number, boolean>>({});
+
   const [welcomeIndex, setWelcomeIndex] = useState(0);
   const welcomeMessages = [
     "Welcome to Task Tuner Rewards",
@@ -321,6 +325,25 @@ export default function App() {
     };
   }, []);
 
+  // Timer Effect for Micro Tasks
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMicroTasksTimers(prev => {
+        const next = { ...prev };
+        let changed = false;
+        Object.keys(next).forEach(key => {
+          const id = parseInt(key);
+          if (next[id] > 0) {
+            next[id] -= 1;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleWatchAd = async () => {
     if (isWatching || !auth.currentUser) return;
     
@@ -352,9 +375,9 @@ export default function App() {
       try {
         adFn().then(() => {
           try {
-            (window as any).Telegram?.WebApp?.showAlert('You have seen an ad! 2 points earned');
+            (window as any).Telegram?.WebApp?.showAlert('You have seen an ad!');
           } catch {
-            alert('You have seen an ad! 2 points earned');
+            alert('You have seen an ad!');
           }
           rewardUser();
         }).catch((err: any) => {
@@ -446,6 +469,41 @@ export default function App() {
       handleFirestoreError(err, OperationType.UPDATE, userDocPath);
     } finally {
       setIsVerifyingTask(false);
+    }
+  };
+
+  const handleMicroTaskVisit = (id: number, link: string) => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      tg.openLink(link);
+    } else {
+      window.open(link, '_blank');
+    }
+    
+    setMicroTasksTimers(prev => ({ ...prev, [id]: 30 }));
+    setMicroTasksActive(prev => ({ ...prev, [id]: true }));
+  };
+
+  const handleMicroTaskClaim = async (id: number) => {
+    if (!auth.currentUser || !profile) return;
+    if (profile.tasksCompleted.includes(`micro_${id}`)) return;
+
+    const userDocPath = `users/${auth.currentUser.uid}`;
+    try {
+      await updateDoc(doc(db, userDocPath), {
+        balance: increment(10), // 10 points per micro task
+        tasksCompleted: [...profile.tasksCompleted, `micro_${id}`],
+        updatedAt: serverTimestamp()
+      });
+      
+      try {
+        (window as any).Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+        (window as any).Telegram?.WebApp?.showAlert('Task Completed! 10 points added.');
+      } catch {
+        alert('Task Completed! 10 points added.');
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, userDocPath);
     }
   };
 
@@ -784,109 +842,164 @@ export default function App() {
           </>
         ) : activeTab === 'tasks' ? (
           <div className="space-y-6">
-            {/* Daily Check-in Card */}
-            <section className="stats-card rounded-3xl p-6 bg-gradient-to-b from-white/[0.05] to-transparent">
-               <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="font-bold text-base">Daily Check-in</h3>
-                    <p className="text-xs text-[#A0AEC0]">Claim your daily reward</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-bold text-[#10B981]">{profile?.dailyStreak}/7 Days</p>
-                    <div className="w-20 h-1.5 bg-white/10 rounded-full mt-1 overflow-hidden">
-                       <div 
-                        className="h-full bg-[#10B981]" 
-                        style={{ width: `${((profile?.dailyStreak || 0) / 7) * 100}%` }}
-                       />
+            {/* Daily Check-in Category */}
+            <div>
+              <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2 px-1">
+                <Clock className="w-5 h-5 text-[#10B981]" />
+                Daily Check-in
+              </h2>
+              <section className="stats-card rounded-3xl p-6 bg-gradient-to-b from-white/[0.05] to-transparent">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="font-bold text-base">Daily Reward</h3>
+                      <p className="text-xs text-[#A0AEC0]">Claim your daily reward</p>
                     </div>
-                  </div>
-               </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-[#10B981]">{profile?.dailyStreak}/7 Days</p>
+                      <div className="w-20 h-1.5 bg-white/10 rounded-full mt-1 overflow-hidden">
+                        <div 
+                          className="h-full bg-[#10B981]" 
+                          style={{ width: `${((profile?.dailyStreak || 0) / 7) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                </div>
 
-               <div className="grid grid-cols-7 gap-2 mb-6">
-                 {Array.from({ length: 7 }).map((_, i) => {
-                   const day = i + 1;
-                   const isCompleted = day <= (profile?.dailyStreak || 0);
-                   const isCurrent = day === ((profile?.dailyStreak || 0) % 7) + 1;
-                   
-                   return (
-                     <div key={day} className="flex flex-col items-center gap-2">
-                        <div className={`w-full aspect-square rounded-xl flex items-center justify-center text-[10px] font-bold border transition-all
-                          ${isCompleted ? 'bg-[#10B981] border-[#10B981] text-white' : 
-                            isCurrent ? 'bg-white/5 border-[#10B981] text-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 
-                            'bg-white/5 border-white/10 text-[#A0AEC0]'}`}
-                        >
-                          {isCompleted ? <Check className="w-4 h-4" /> : `Day ${day}`}
+                <div className="grid grid-cols-7 gap-2 mb-6">
+                  {DAILY_REWARDS.map((reward, i) => {
+                    const day = i + 1;
+                    const isCompleted = profile && day <= profile.dailyStreak;
+                    const isCurrent = profile && day === ((profile.dailyStreak % 7) + 1);
+                    
+                    return (
+                      <div key={i} className="flex flex-col items-center gap-1">
+                        <div className={`w-full aspect-square rounded-xl flex items-center justify-center border ${
+                          isCompleted ? 'bg-[#10B981] border-[#10B981] text-white' : 
+                          isCurrent ? 'bg-[#10B981]/20 border-[#10B981] text-[#10B981]' : 
+                          'bg-white/5 border-white/10 text-white/40'
+                        }`}>
+                          {isCompleted ? <Check className="w-4 h-4" /> : <span className="text-[10px] font-bold">{reward}</span>}
                         </div>
-                        <span className={`text-[8px] font-bold ${isCurrent ? 'text-[#10B981]' : 'text-[#A0AEC0]'}`}>
-                          {DAILY_REWARDS[i]} pts
-                        </span>
-                     </div>
-                   );
-                 })}
-               </div>
+                        <span className="text-[8px] uppercase font-bold opacity-40">Day {day}</span>
+                      </div>
+                    );
+                  })}
+                </div>
 
-               <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={handleDailyCheckIn}
-                disabled={isClaimingDaily}
-                className="w-full py-3 rounded-xl bg-[#10B981] text-white text-sm font-bold shadow-lg shadow-[#10B981]/20 disabled:opacity-50"
-               >
-                 {isClaimingDaily ? 'Claiming...' : 'Claim Today\'s Reward'}
-               </motion.button>
-            </section>
+                <motion.button 
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDailyCheckIn}
+                  disabled={isClaimingDaily || (profile && profile.lastDailyClaim && (Date.now() - profile.lastDailyClaim.toMillis()) < 24 * 60 * 60 * 1000)}
+                  className="w-full py-3 rounded-xl bg-[#10B981] text-white font-bold text-sm disabled:opacity-50"
+                >
+                  {isClaimingDaily ? 'Claiming...' : 'Collect Reward'}
+                </motion.button>
+              </section>
+            </div>
 
-            {/* Tasks List */}
-            <h4 className="font-bold text-sm px-1">Available Tasks</h4>
-            
-            <div className="space-y-4">
-               {/* Telegram Join Task */}
-               <div className="stats-card rounded-2xl p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-green-400" />
+            {/* Available Tasks Category */}
+            <div>
+              <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2 px-1">
+                <CheckCircle2 className="w-5 h-5 text-[#10B981]" />
+                Available Tasks
+              </h2>
+              <div className="space-y-3">
+                <section className="stats-card rounded-2xl p-4 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                    <Users className="w-6 h-6 text-blue-500" />
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                       <h4 className="font-bold text-sm">Join @tasktuner</h4>
-                       {profile?.tasksCompleted.includes('tg_join') && (
-                         <CheckCircle2 className="w-3 h-3 text-green-400" />
-                       )}
-                    </div>
-                    <p className="text-xs text-[#A0AEC0]">Reward: 10 points | Be active EB</p>
+                    <h4 className="font-bold text-sm">Join Telegram Channel</h4>
+                    <p className="text-xs text-[#A0AEC0]">Reward: 10 points | Verify after join</p>
                   </div>
-                  
                   {!profile?.tasksCompleted.includes('tg_join') ? (
-                    <div className="flex flex-col gap-2">
-                      {!hasClickedJoin ? (
-                        <a 
-                          href="https://t.me/TaskTuner" 
-                          target="_blank" 
-                          rel="noreferrer"
-                          onClick={() => setHasClickedJoin(true)}
-                          className="px-4 py-2 rounded-lg bg-[#10B981] text-white text-[10px] font-bold shadow-lg shadow-[#10B981]/20 text-center flex items-center justify-center gap-2"
-                        >
-                           Join <ExternalLink size={10} />
-                        </a>
-                      ) : (
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => {
+                          const link = 'https://t.me/jaallatamaa';
+                          try {
+                            (window as any).Telegram?.WebApp?.openTelegramLink(link);
+                          } catch {
+                            window.open(link, '_blank');
+                          }
+                          setHasClickedJoin(true);
+                        }}
+                        className="px-4 py-2 rounded-lg bg-white/5 text-white text-xs font-bold border border-white/10"
+                      >
+                        Join
+                      </button>
+                      {hasClickedJoin && (
                         <button 
                           onClick={handleJoinTelegram}
                           disabled={isVerifyingTask}
-                          className="px-8 py-2 rounded-lg bg-white/10 text-white text-[10px] font-bold border border-white/10 disabled:opacity-50 flex items-center justify-center gap-2"
+                          className="px-4 py-2 rounded-lg bg-[#10B981] text-white text-xs font-bold"
                         >
-                           {isVerifyingTask ? (
-                             <>
-                               <Loader2 className="w-3 h-3 animate-spin" />
-                               Verifying...
-                             </>
-                           ) : 'Joined'}
+                          {isVerifyingTask ? '...' : 'Verify'}
                         </button>
                       )}
                     </div>
                   ) : (
-                    <div className="px-4 py-2 rounded-lg bg-green-500/10 text-green-400 text-[10px] font-bold border border-green-500/10">
-                       Success
+                    <div className="w-8 h-8 rounded-full bg-[#10B981]/20 flex items-center justify-center">
+                      <Check className="w-4 h-4 text-[#10B981]" />
                     </div>
                   )}
-               </div>
+                </section>
+              </div>
+            </div>
+
+            {/* Micro Tasks Category */}
+            <div>
+              <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2 px-1">
+                <Zap className="w-5 h-5 text-[#10B981]" />
+                Micro Tasks
+              </h2>
+              <div className="grid grid-cols-1 gap-3">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(id => {
+                  const link = (id % 2 !== 0) ? "https://omg10.com/4/10954043" : "https://omg10.com/4/10937706";
+                  const timeLeft = microTasksTimers[id] || 0;
+                  const isCompleted = profile?.tasksCompleted.includes(`micro_${id}`);
+                  const isActive = microTasksActive[id];
+
+                  return (
+                    <section key={id} className="stats-card rounded-2xl p-4 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-[#10B981]/10 flex items-center justify-center font-bold text-[#10B981]">
+                          {id}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm">Micro Task {id}</h4>
+                          <p className="text-[10px] text-[#A0AEC0]">Visit link for 30s to claim 10 pts</p>
+                        </div>
+                      </div>
+                      
+                      {isCompleted ? (
+                        <div className="flex items-center gap-2 text-[#10B981] text-xs font-bold bg-[#10B981]/10 px-3 py-1.5 rounded-lg text-nowrap">
+                          <Check className="w-3.5 h-3.5" />
+                          Done
+                        </div>
+                      ) : timeLeft > 0 ? (
+                        <button disabled className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-xs font-bold border border-white/5 min-w-[80px]">
+                          Wait {timeLeft}s
+                        </button>
+                      ) : timeLeft === 0 && isActive ? (
+                        <button 
+                          onClick={() => handleMicroTaskClaim(id)}
+                          className="px-4 py-2 rounded-lg bg-[#10B981] text-white text-xs font-bold shadow-lg shadow-[#10B981]/20 animate-pulse min-w-[80px]"
+                        >
+                          Claim
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleMicroTaskVisit(id, link)}
+                          className="px-4 py-2 rounded-lg bg-white text-black text-xs font-bold min-w-[80px]"
+                        >
+                          Visit
+                        </button>
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : activeTab === 'wallet' ? (
