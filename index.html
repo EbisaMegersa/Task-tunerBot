@@ -6,6 +6,15 @@
     <title>Jaallatamaa Rewards</title>
     <script>
       (function() {
+        // Suppress Telegram WebApp SDK version support error messages
+        var originalError = console.error;
+        console.error = function() {
+          if (arguments[0] && typeof arguments[0] === 'string' && (arguments[0].indexOf('is not supported') !== -1)) {
+            return;
+          }
+          originalError.apply(console, arguments);
+        };
+
         var highVersion = '8.0';
         var mockStorage = {
           setItem: function(k, v, cb) { if(cb) cb(null, true); return this; },
@@ -22,53 +31,63 @@
           if (callback) callback(params.buttons ? params.buttons[0].id : null);
         };
 
-        var mockShowAlert = function(msg, callback) {
-          console.log('Mocked showAlert:', msg);
-          alert(msg);
-          if (callback) callback();
-        };
-
         function patchWebApp(obj) {
           if (!obj) return;
           try {
-            // Suppress SDK errors by forcing version
+            // Force high version to enable CloudStorage and other features
+            Object.defineProperty(obj, 'version', { 
+              value: highVersion, 
+              writable: true, 
+              configurable: true 
+            });
             obj.version = highVersion;
-            
-            // Override properties to be robust
-            Object.defineProperty(obj, 'version', { get: function() { return highVersion; }, configurable: true });
-            Object.defineProperty(obj, 'isVersionAtLeast', { value: function() { return true; }, configurable: true });
-            Object.defineProperty(obj, 'CloudStorage', { value: mockStorage, configurable: true });
-            Object.defineProperty(obj, 'showPopup', { value: mockShowPopup, configurable: true });
-            Object.defineProperty(obj, 'showAlert', { value: mockShowAlert, configurable: true });
+
+            Object.defineProperty(obj, 'isVersionAtLeast', { 
+              value: function() { return true; }, 
+              writable: true, 
+              configurable: true 
+            });
+
+            Object.defineProperty(obj, 'CloudStorage', { 
+              value: mockStorage, 
+              writable: true, 
+              configurable: true 
+            });
+
+            Object.defineProperty(obj, 'showPopup', { 
+              value: mockShowPopup, 
+              writable: true, 
+              configurable: true 
+            });
 
             if (obj.initDataUnsafe) {
               obj.initDataUnsafe.version = highVersion;
             }
           } catch (e) {
-            console.warn("Patch failed", e);
+            console.warn("Failed to patch Telegram WebApp", e);
           }
         }
 
-        // Intercept Telegram object
-        var _tg = window.Telegram || {};
+        // Periodic check to ensure the version and mock stay patched
+        setInterval(function() {
+          if (window.Telegram && window.Telegram.WebApp) {
+             var wa = window.Telegram.WebApp;
+             if (wa.version !== highVersion || !wa.CloudStorage || !wa.CloudStorage.mocked) {
+               patchWebApp(wa);
+             }
+          }
+        }, 50);
+
+        // Define Telegram with a robust getter/setter to catch WebApp initialization
+        var _tp = window.Telegram || {};
         Object.defineProperty(window, 'Telegram', {
-          get: function() { return _tg; },
-          set: function(v) { 
-            _tg = v; 
-            if (_tg && _tg.WebApp) patchWebApp(_tg.WebApp);
+          get: function() { return _tp; },
+          set: function(val) {
+            _tp = val || {};
+            if (_tp.WebApp) patchWebApp(_tp.WebApp);
           },
           configurable: true
         });
-
-        // Patch already existing one if script loaded fast
-        if (_tg.WebApp) patchWebApp(_tg.WebApp);
-
-        // Fallback for anyone already checking version
-        setInterval(function() {
-          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.version !== highVersion) {
-            patchWebApp(window.Telegram.WebApp);
-          }
-        }, 30);
       })();
     </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>

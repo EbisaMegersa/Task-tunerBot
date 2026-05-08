@@ -19,6 +19,16 @@
         "invitedBy": { "type": "string" },
         "has_withdrawn": { "type": "boolean" },
         "adsSinceLastWithdrawal": { "type": "integer" },
+        "microTaskStats": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "count": { "type": "number" },
+              "cooldownUntil": { "type": "number" }
+            }
+          }
+        },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["telegramId", "username", "adsWatched", "balance", "updatedAt"]

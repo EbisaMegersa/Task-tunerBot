@@ -45,6 +45,7 @@ interface UserProfile {
   has_withdrawn: boolean;
   adsSinceLastWithdrawal: number;
   microTasksCompleted: number;
+  microTaskStats?: Record<string, { count: number; cooldownUntil: number }>;
 }
 
 interface WithdrawalHistory {
@@ -227,7 +228,8 @@ export default function App() {
                 invitedBy: data.invitedBy || null,
                 has_withdrawn: data.has_withdrawn || false,
                 adsSinceLastWithdrawal: data.adsSinceLastWithdrawal || 0,
-                microTasksCompleted: data.microTasksCompleted || 0
+                microTasksCompleted: data.microTasksCompleted || 0,
+                microTaskStats: data.microTaskStats || {}
               });
             setLoading(false);
           } else {
@@ -291,6 +293,7 @@ export default function App() {
                 has_withdrawn: false,
                 adsSinceLastWithdrawal: 0,
                 microTasksCompleted: 0,
+                microTaskStats: {},
                 updatedAt: serverTimestamp()
               };
               await setDoc(doc(db, userDocPath), initialProfile);
@@ -511,21 +514,46 @@ export default function App() {
     if (!auth.currentUser || !profile) return;
 
     const userDocPath = `users/${auth.currentUser.uid}`;
+    const taskId = String(id);
+    const stats = profile.microTaskStats?.[taskId] || { count: 0, cooldownUntil: 0 };
+    
+    // Safety check again (should be handled in UI)
+    if (stats.cooldownUntil > Date.now()) {
+      alert("This task is on cooldown!");
+      return;
+    }
+
+    const newCount = stats.count + 1;
+    const cooldownPeriod = 24 * 60 * 60 * 1000;
+    const isLocking = newCount >= 11;
+    
     try {
-      await updateDoc(doc(db, userDocPath), {
-        balance: increment(4), // 4 points per micro task
+      const updates: any = {
+        balance: increment(3), // 3 points per micro task
         microTasksCompleted: increment(1),
+        [`microTaskStats.${taskId}.count`]: isLocking ? 0 : newCount,
+        [`microTaskStats.${taskId}.cooldownUntil`]: isLocking ? Date.now() + cooldownPeriod : 0,
         updatedAt: serverTimestamp()
-      });
+      };
+
+      await updateDoc(doc(db, userDocPath), updates);
       
       try {
         (window as any).Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-        (window as any).Telegram?.WebApp?.showAlert('Task Completed! 4 points added.');
+        if (isLocking) {
+          (window as any).Telegram?.WebApp?.showAlert('Task Completed! 3 points added. Limit reached, task locked for 24h.');
+        } else {
+          (window as any).Telegram?.WebApp?.showAlert(`Task Completed! 3 points added. (${newCount}/11 today)`);
+        }
       } catch {
-        alert('Task Completed! 4 points added.');
+        if (isLocking) {
+          alert('Task Completed! 3 points added. Limit reached, task locked for 24h.');
+        } else {
+          alert(`Task Completed! 3 points added. (${newCount}/11 today)`);
+        }
       }
 
-      // Reset state for this task immediately so user can do it again
+      // Reset state for this task immediately so user can do it again (if not locked)
       setMicroTasksActive(prev => ({ ...prev, [id]: false }));
       setMicroTasksTimers(prev => ({ ...prev, [id]: 0 }));
 
@@ -983,20 +1011,36 @@ export default function App() {
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(id => {
                   const timeLeft = microTasksTimers[id] || 0;
                   const isActive = microTasksActive[id];
+                  const stats = profile?.microTaskStats?.[String(id)] || { count: 0, cooldownUntil: 0 };
+                  const isLocked = stats.cooldownUntil > Date.now();
+                  
+                  const getCooldownTimeLeft = () => {
+                    const diff = stats.cooldownUntil - Date.now();
+                    if (diff <= 0) return null;
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    return `${hours}h ${mins}m`;
+                  };
 
                   return (
-                    <section key={id} className="stats-card rounded-2xl p-4 flex items-center justify-between gap-4">
+                    <section key={id} className={`stats-card rounded-2xl p-4 flex items-center justify-between gap-4 ${isLocked ? 'opacity-60 grayscale' : ''}`}>
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-[#10B981]/10 flex items-center justify-center font-bold text-[#10B981]">
-                          {id}
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${isLocked ? 'bg-red-500/10 text-red-500' : 'bg-[#10B981]/10 text-[#10B981]'}`}>
+                          {isLocked ? <Clock size={16} /> : id}
                         </div>
                         <div>
                           <h4 className="font-bold text-sm">Micro Task {id}</h4>
-                          <p className="text-[10px] text-[#A0AEC0]">Watch ad and wait 30s to claim 4 pts</p>
+                          <p className="text-[10px] text-[#A0AEC0]">
+                            {isLocked ? `Locked: Resets in ${getCooldownTimeLeft()}` : `Watch ad & wait 30s to claim 3 pts (${stats.count}/11)`}
+                          </p>
                         </div>
                       </div>
                       
-                      {timeLeft > 0 ? (
+                      {isLocked ? (
+                        <div className="text-[10px] font-black text-red-500 uppercase bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20">
+                          Locked
+                        </div>
+                      ) : timeLeft > 0 ? (
                         <button disabled className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-xs font-bold border border-white/5 min-w-[80px]">
                           Wait {timeLeft}s
                         </button>
