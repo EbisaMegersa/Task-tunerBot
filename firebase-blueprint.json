@@ -55,9 +55,12 @@
         "uid": { "type": "string" },
         "status": { "type": "string", "enum": ["Pending", "Success", "Rejected"] },
         "createdAt": { "type": "string", "format": "date-time" },
-        "userId": { "type": "string" }
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "telegramId": { "type": "number" },
+        "email": { "type": "string" }
       },
-      "required": ["amount", "method", "status", "createdAt", "userId"]
+      "required": ["amount", "method", "status", "createdAt", "userId", "username", "telegramId"]
     }
   },
   "firestore": {

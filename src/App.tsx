@@ -54,6 +54,11 @@ interface WithdrawalHistory {
   method: string;
   status: 'Pending' | 'Success' | 'Rejected';
   createdAt: any;
+  address?: string;
+  uid?: string;
+  username?: string;
+  telegramId?: number;
+  email?: string;
 }
 
 const DAILY_REWARDS = [8, 12, 23, 32, 42, 58, 83]; // Points
@@ -653,7 +658,10 @@ export default function App() {
         uid: withdrawalUid || null,
         status: 'Pending',
         createdAt: serverTimestamp(),
-        userId: auth.currentUser.uid
+        userId: auth.currentUser.uid,
+        username: profile.username || 'Unknown',
+        telegramId: profile.telegramId || 0,
+        email: profile.email || auth.currentUser.email || 'No email'
       });
 
       // Commit Batch
