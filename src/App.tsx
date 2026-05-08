@@ -77,6 +77,11 @@ interface FirestoreErrorInfo {
     email?: string | null;
     emailVerified?: boolean | null;
     isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
   }
 }
 
@@ -88,6 +93,11 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
       email: auth.currentUser?.email,
       emailVerified: auth.currentUser?.emailVerified,
       isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
     },
     operationType,
     path
@@ -478,7 +488,11 @@ export default function App() {
   const handleMicroTaskVisit = (id: number) => {
     const adFn = (window as any).show_10937696;
     if (typeof adFn === 'function') {
-      adFn('pop').then(() => {
+      // Rewarded interstitial
+      adFn().then(() => {
+        // You need to add your user reward function here, which will be executed after the user watches the ad.
+        // For more details, please refer to the detailed instructions.
+        alert('Micro Task is done ✅');
         setMicroTasksTimers(prev => ({ ...prev, [id]: 30 }));
         setMicroTasksActive(prev => ({ ...prev, [id]: true }));
       }).catch((e: any) => {

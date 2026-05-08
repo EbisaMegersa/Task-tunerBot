@@ -4,6 +4,11 @@ service cloud.firestore {
     // 0. Global Safety Net
     match /{document=**} { allow read, write: if false; }
 
+    // Connection Test Path - Explicitly allow get
+    match /test/connection {
+      allow get: if true;
+    }
+
     // Helpers
     function isSignedIn() { return request.auth != null; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$'); }
@@ -20,7 +25,7 @@ service cloud.firestore {
         && (data.get('consumedInvites', 0) is number)
         && (data.get('has_withdrawn', false) is bool)
         && (data.get('adsSinceLastWithdrawal', 0) is number)
-        && data.updatedAt == request.time
+        && (data.updatedAt == request.time || data.updatedAt == existing().get('updatedAt', request.time))
         && data.telegramId is number;
     }
 
@@ -40,10 +45,9 @@ service cloud.firestore {
       
       allow update: if isOwner(userId) && isValidId(userId) && (
         // Action: Owner self-update
-        incoming().get('updatedAt', request.time) == request.time &&
         (
           isValidUser(incoming()) || 
-          incoming().diff(existing()).affectedKeys().hasAny(['consumedInvites', 'updatedAt', 'has_withdrawn', 'adsSinceLastWithdrawal', 'balance', 'dailyStreak', 'lastDailyClaim', 'tasksCompleted', 'adsWatched', 'referralsCount', 'total_invites', 'referralEarnings'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['consumedInvites', 'updatedAt', 'has_withdrawn', 'adsSinceLastWithdrawal', 'balance', 'dailyStreak', 'lastDailyClaim', 'tasksCompleted', 'adsWatched', 'referralsCount', 'total_invites', 'referralEarnings', 'microTasksCompleted'])
         )
       ) || (
         // Action: Referral Reward (50 points from another user)

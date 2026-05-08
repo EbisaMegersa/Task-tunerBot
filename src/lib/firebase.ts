@@ -9,11 +9,23 @@ export const auth = getAuth(app);
 
 // Connectivity check
 async function testConnection() {
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('Firestore connection timeout')), 15000)
+  );
+
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    // Race the connection test against a 15s timeout
+    await Promise.race([
+      getDocFromServer(doc(db, 'test', 'connection')),
+      timeoutPromise
+    ]);
+    console.log("Firebase connection successful.");
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("Firestore connectivity test failed:", errorMsg);
+    
+    if (errorMsg.includes('the client is offline') || errorMsg.includes('Could not reach Cloud Firestore backend') || errorMsg.includes('timeout')) {
+      console.error("Please check your Firebase configuration. The app may be running in offline mode.");
     }
   }
 }
