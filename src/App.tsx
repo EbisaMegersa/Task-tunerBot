@@ -133,6 +133,7 @@ export default function App() {
   // Micro Tasks State
   const [microTasksTimers, setMicroTasksTimers] = useState<Record<number, number>>({});
   const [microTasksActive, setMicroTasksActive] = useState<Record<number, boolean>>({});
+  const [now, setNow] = useState(Date.now());
 
   const [welcomeIndex, setWelcomeIndex] = useState(0);
   const welcomeMessages = [
@@ -344,6 +345,7 @@ export default function App() {
   // Timer Effect for Micro Tasks
   useEffect(() => {
     const interval = setInterval(() => {
+      setNow(Date.now());
       setMicroTasksTimers(prev => {
         const next = { ...prev };
         let changed = false;
@@ -1012,14 +1014,15 @@ export default function App() {
                   const timeLeft = microTasksTimers[id] || 0;
                   const isActive = microTasksActive[id];
                   const stats = profile?.microTaskStats?.[String(id)] || { count: 0, cooldownUntil: 0 };
-                  const isLocked = stats.cooldownUntil > Date.now();
+                  const isLocked = stats.cooldownUntil > now;
                   
                   const getCooldownTimeLeft = () => {
-                    const diff = stats.cooldownUntil - Date.now();
+                    const diff = stats.cooldownUntil - now;
                     if (diff <= 0) return null;
                     const hours = Math.floor(diff / (1000 * 60 * 60));
                     const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                    return `${hours}h ${mins}m`;
+                    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                    return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
                   };
 
                   return (
@@ -1031,14 +1034,14 @@ export default function App() {
                         <div>
                           <h4 className="font-bold text-sm">Micro Task {id}</h4>
                           <p className="text-[10px] text-[#A0AEC0]">
-                            {isLocked ? `Locked: Resets in ${getCooldownTimeLeft()}` : `Watch ad & wait 30s to claim 3 pts (${stats.count}/11)`}
+                            {isLocked ? 'Daily limit reached' : `Watch ad & wait 30s to claim 3 pts (${stats.count}/11)`}
                           </p>
                         </div>
                       </div>
                       
                       {isLocked ? (
-                        <div className="text-[10px] font-black text-red-500 uppercase bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20">
-                          Locked
+                        <div className="text-[10px] font-bold text-red-500 bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 font-mono min-w-[80px] text-center">
+                          {getCooldownTimeLeft()}
                         </div>
                       ) : timeLeft > 0 ? (
                         <button disabled className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-xs font-bold border border-white/5 min-w-[80px]">
