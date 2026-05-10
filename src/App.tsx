@@ -396,7 +396,7 @@ export default function App() {
     const adFn = (window as any).show_10937696;
     if (typeof adFn === 'function') {
       try {
-        adFn().then(() => {
+        adFn('pop').then(() => {
           try {
             (window as any).Telegram?.WebApp?.showAlert('You have seen an ad!');
           } catch {
@@ -405,6 +405,14 @@ export default function App() {
           rewardUser();
         }).catch((err: any) => {
           console.error("Ad SDK error:", err);
+          const errMsg = String(err);
+          if (errMsg.includes('Empty feed')) {
+            try {
+              (window as any).Telegram?.WebApp?.showAlert('Ads are temporarily unavailable. Please try again in 5-10 minutes.');
+            } catch {
+              alert('Ads are temporarily unavailable. Please try again in 5-10 minutes.');
+            }
+          }
           setIsWatching(false);
         });
       } catch (err) {
@@ -507,6 +515,14 @@ export default function App() {
         setMicroTasksActive(prev => ({ ...prev, [id]: true }));
       }).catch((e: any) => {
         console.error("Micro task ad error:", e);
+        const errMsg = String(e);
+        if (errMsg.includes('Empty feed')) {
+          try {
+            (window as any).Telegram?.WebApp?.showAlert('Ads are temporarily unavailable. Task timer started anyway to allow completion.');
+          } catch {
+            alert('Ads are temporarily unavailable. Task timer started anyway to allow completion.');
+          }
+        }
         setMicroTasksTimers(prev => ({ ...prev, [id]: 30 }));
         setMicroTasksActive(prev => ({ ...prev, [id]: true }));
       });
