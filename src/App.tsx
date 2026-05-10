@@ -363,25 +363,31 @@ export default function App() {
         Object.keys(next).forEach(key => {
           const id = parseInt(key);
           if (next[id] > 0) {
-            next[id] -= 1;
+            const newVal = next[id] - 1;
+            next[id] = newVal;
             changed = true;
+            
+            // Auto-claim logic: When timer finishes, if active, claim it.
+            if (newVal === 0 && microTasksActive[id]) {
+              handleMicroTaskClaim(id);
+            }
           }
         });
         return changed ? next : prev;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [microTasksActive, profile]); // Added dependencies to ensure auto-claim works with current state
 
   const handleWatchAd = async () => {
     if (isWatching || !auth.currentUser || !profile) return;
     
-    // Hourly reset logic
+    // 15-minute reset logic
     const lastReset = profile.lastHourlyAdReset ? profile.lastHourlyAdReset.toMillis() : 0;
-    const isNewHour = (Date.now() - lastReset >= 3600000) || !profile.lastHourlyAdReset;
-    const currentHourlyCount = isNewHour ? 0 : (profile.adsWatchedThisHour || 0);
+    const isNewPeriod = (Date.now() - lastReset >= 900000) || !profile.lastHourlyAdReset;
+    const currentCount = isNewPeriod ? 0 : (profile.adsWatchedThisHour || 0);
 
-    if (currentHourlyCount >= 10 && !isNewHour) {
+    if (currentCount >= 15 && !isNewPeriod) {
       return;
     }
 
@@ -395,11 +401,11 @@ export default function App() {
           adsWatched: increment(1),
           adsSinceLastWithdrawal: increment(1),
           balance: increment(2), // 2 points per ad
-          adsWatchedThisHour: isNewHour ? 1 : increment(1),
+          adsWatchedThisHour: isNewPeriod ? 1 : increment(1),
           updatedAt: serverTimestamp()
         };
         
-        if (isNewHour) {
+        if (isNewPeriod) {
           updates.lastHourlyAdReset = serverTimestamp();
         }
 
@@ -561,24 +567,32 @@ export default function App() {
 
     const userDocPath = `users/${auth.currentUser.uid}`;
     const taskId = String(id);
-    const stats = profile.microTaskStats?.[taskId] || { count: 0, cooldownUntil: 0 };
+    const stats = profile.microTaskStats?.[taskId] || { count: 0, cooldownUntil: 0, periodStart: 0 };
     
-    // Safety check again (should be handled in UI)
-    if (stats.cooldownUntil > Date.now()) {
-      alert("This task is on cooldown!");
-      return;
+    const nowTs = Date.now();
+    const periodDuration = 12 * 60 * 60 * 1000;
+    
+    let currentCount = stats.count;
+    let currentPeriodStart = stats.periodStart || 0;
+
+    // Check if period has ended
+    if (currentPeriodStart > 0 && nowTs - currentPeriodStart >= periodDuration) {
+      currentCount = 0;
+      currentPeriodStart = 0;
     }
 
-    const newCount = stats.count + 1;
-    const cooldownPeriod = 24 * 60 * 60 * 1000;
-    const isLocking = newCount >= 15;
+    const newCount = currentCount + 1;
+    const isFirstInPeriod = currentPeriodStart === 0;
+    const newPeriodStart = isFirstInPeriod ? nowTs : currentPeriodStart;
+    const isLimitReached = newCount >= 15;
     
     try {
       const updates: any = {
         balance: increment(3), // 3 points per micro task
         microTasksCompleted: increment(1),
-        [`microTaskStats.${taskId}.count`]: isLocking ? 0 : newCount,
-        [`microTaskStats.${taskId}.cooldownUntil`]: isLocking ? Date.now() + cooldownPeriod : 0,
+        [`microTaskStats.${taskId}.count`]: newCount,
+        [`microTaskStats.${taskId}.periodStart`]: newPeriodStart,
+        [`microTaskStats.${taskId}.cooldownUntil`]: isLimitReached ? newPeriodStart + periodDuration : 0,
         updatedAt: serverTimestamp()
       };
 
@@ -586,16 +600,16 @@ export default function App() {
       
       try {
         (window as any).Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-        if (isLocking) {
-          (window as any).Telegram?.WebApp?.showAlert('Task Completed! 3 points added. Limit reached, task locked for 24h.');
+        if (isLimitReached) {
+          (window as any).Telegram?.WebApp?.showAlert('Task Completed! 3 points added. Limit reached, next set in ' + new Date(newPeriodStart + periodDuration).toLocaleTimeString());
         } else {
-          (window as any).Telegram?.WebApp?.showAlert(`Task Completed! 3 points added. (${newCount}/15 today)`);
+          (window as any).Telegram?.WebApp?.showAlert(`Task Completed! 3 points added. (${newCount}/15 this period)`);
         }
       } catch {
-        if (isLocking) {
-          alert('Task Completed! 3 points added. Limit reached, task locked for 24h.');
+        if (isLimitReached) {
+          alert('Task Completed! 3 points added. Limit reached.');
         } else {
-          alert(`Task Completed! 3 points added. (${newCount}/15 today)`);
+          alert(`Task Completed! 3 points added. (${newCount}/15 this period)`);
         }
       }
 
@@ -643,23 +657,27 @@ export default function App() {
       return;
     }
 
-    // 3. Lock System Check
-    const availableInvites = (profile.total_invites || 0) - (profile.consumedInvites || 0);
-    const meetsInvites = availableInvites >= 20;
-    const adRequirement = 25;
-    const meetsAds = (profile.adsSinceLastWithdrawal || 0) >= adRequirement;
+      // 3. Lock System Check
+      const availableInvites = (profile.total_invites || 0) - (profile.consumedInvites || 0);
+      const adRequirement = 25;
+      const microtaskRequirement = 30;
+      
+      const meetsInvites = availableInvites >= 20;
+      const meetsAds = (profile.adsSinceLastWithdrawal || 0) >= adRequirement;
+      const meetsMicrotasks = (profile.microTasksCompleted || 0) >= microtaskRequirement;
 
-    if (!meetsInvites || !meetsAds) {
-      if (!meetsInvites) {
-        alert(`❌ Requirement Not Met: You need to invite 20 friends to unlock this withdrawal. You currently have ${availableInvites}/20. Keep sharing your link!`);
-      } else {
-        alert(`❌ Ads Required: To support the payout pool, you must view ${adRequirement} ads. You have completed ${profile.adsSinceLastWithdrawal}/${adRequirement}. Tap 'View Ads' to continue!`);
+      if (!meetsInvites || !meetsAds || !meetsMicrotasks) {
+        let msg = "❌ Requirement Not Met:\n";
+        if (!meetsInvites) msg += `- Need 20 referrals (${availableInvites}/20)\n`;
+        if (!meetsAds) msg += `- Need 25 ad views (${profile.adsSinceLastWithdrawal}/25)\n`;
+        if (!meetsMicrotasks) msg += `- Need 30 microtasks (${profile.microTasksCompleted}/30)`;
+        
+        alert(msg);
+        try {
+          (window as any).Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
+        } catch {}
+        return;
       }
-      try {
-        (window as any).Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
-      } catch {}
-      return;
-    }
 
     // 4. Address Check (only if not Exchange)
     const isExchange = (withdrawalMethod === 'binance');
@@ -916,40 +934,39 @@ export default function App() {
 
             {/* Action Button */}
             {(() => {
-              const lastReset = profile?.lastHourlyAdReset ? profile.lastHourlyAdReset.toMillis() : (now - 4000000); 
-              const isNewHour = now - lastReset >= 3600000;
-              const hourlyAds = isNewHour ? 0 : (profile?.adsWatchedThisHour || 0);
-              const hourlyLocked = hourlyAds >= 10 && !isNewHour;
+              const lastReset = profile?.lastHourlyAdReset ? profile.lastHourlyAdReset.toMillis() : (now - 1000000); 
+              const isNewPeriod = now - lastReset >= 900000;
+              const adsCount = isNewPeriod ? 0 : (profile?.adsWatchedThisHour || 0);
+              const isLocked = adsCount >= 15 && !isNewPeriod;
 
-              const getHourlyCooldown = () => {
-                const diff = 3600000 - (now - lastReset);
+              const getCooldown = () => {
+                const diff = 900000 - (now - lastReset);
                 if (diff <= 0) return null;
-                const hours = Math.floor(diff / (1000 * 60 * 60));
-                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const mins = Math.floor(diff / (1000 * 60));
                 const secs = Math.floor((diff % (1000 * 60)) / 1000);
-                return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
               };
 
               return (
                 <motion.button 
-                  whileTap={{ scale: hourlyLocked ? 1 : 0.98 }}
+                  whileTap={{ scale: isLocked ? 1 : 0.98 }}
                   onClick={handleWatchAd}
-                  disabled={isWatching || hourlyLocked}
+                  disabled={isWatching || isLocked}
                   className={`w-full h-14 rounded-2xl flex items-center justify-center gap-3 text-white font-bold shadow-lg transition-all
-                    ${hourlyLocked 
+                    ${isLocked 
                       ? 'bg-white/5 border border-white/5 text-white/20 shadow-none' 
                       : 'bg-gradient-to-r from-[#10B981] to-[#059669] shadow-[#10B981]/20 disabled:opacity-70 disabled:cursor-not-allowed group'
                     }`}
                 >
                   {isWatching ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : hourlyLocked ? (
+                  ) : isLocked ? (
                     <Clock size={16} />
                   ) : (
                     <Play className="w-5 h-5 fill-current" />
                   )}
                   <span className="text-lg">
-                    {isWatching ? 'Watching...' : hourlyLocked ? `Next Ad in ${getHourlyCooldown()}` : 'Watch Video Ad'}
+                    {isWatching ? 'Watching...' : isLocked ? `Limit reached. Next set in ${getCooldown()}` : 'Watch Video Ad'}
                   </span>
                 </motion.button>
               );
@@ -1085,12 +1102,18 @@ export default function App() {
               <div className="grid grid-cols-1 gap-3">
                 {[1, 2, 3, 4, 5].map(id => {
                   const timeLeft = microTasksTimers[id] || 0;
-                  const isActive = microTasksActive[id];
-                  const stats = profile?.microTaskStats?.[String(id)] || { count: 0, cooldownUntil: 0 };
-                  const isLocked = stats.cooldownUntil > now;
+                  const stats = profile?.microTaskStats?.[String(id)] || { count: 0, cooldownUntil: 0, periodStart: 0 };
+                  
+                  // Handle period reset logic in UI
+                  const periodDuration = 12 * 60 * 60 * 1000;
+                  const isPeriodOver = stats.periodStart > 0 && now - stats.periodStart >= periodDuration;
+                  
+                  const effectiveCount = isPeriodOver ? 0 : stats.count;
+                  const effectiveCooldownUntil = isPeriodOver ? 0 : stats.cooldownUntil;
+                  const isLocked = effectiveCooldownUntil > now;
                   
                   const getCooldownTimeLeft = () => {
-                    const diff = stats.cooldownUntil - now;
+                    const diff = effectiveCooldownUntil - now;
                     if (diff <= 0) return null;
                     const hours = Math.floor(diff / (1000 * 60 * 60));
                     const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -1107,7 +1130,7 @@ export default function App() {
                         <div>
                           <h4 className="font-bold text-sm">Micro Task {id}</h4>
                           <p className="text-[10px] text-[#A0AEC0]">
-                            {isLocked ? 'Daily limit reached' : `Watch ad & wait 30s to claim 3 pts (${stats.count}/15)`}
+                            {isLocked ? 'Unlocked in 12h' : `Watch ad & wait 30s to claim 3 pts (${effectiveCount}/15)`}
                           </p>
                         </div>
                       </div>
@@ -1117,16 +1140,9 @@ export default function App() {
                           {getCooldownTimeLeft()}
                         </div>
                       ) : timeLeft > 0 ? (
-                        <button disabled className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-xs font-bold border border-white/5 min-w-[80px]">
-                          Wait {timeLeft}s
-                        </button>
-                      ) : timeLeft === 0 && isActive ? (
-                        <button 
-                          onClick={() => handleMicroTaskClaim(id)}
-                          className="px-4 py-2 rounded-lg bg-[#10B981] text-white text-xs font-bold shadow-lg shadow-[#10B981]/20 animate-pulse min-w-[80px]"
-                        >
-                          Claim
-                        </button>
+                        <div className="px-4 py-2 rounded-lg bg-black/40 text-[#10B981] text-xs font-black border border-[#10B981]/30 min-w-[80px] text-center">
+                          {timeLeft}s
+                        </div>
                       ) : (
                         <button 
                           onClick={() => handleMicroTaskVisit(id)}
@@ -1147,34 +1163,27 @@ export default function App() {
             
             {/* Status Section */}
             <div className="grid grid-cols-1 gap-3">
-              <div className="stats-card rounded-2xl p-5 border border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 ? 'bg-green-500/10 text-green-400' : 'bg-white/10 text-white/40'}`}>
-                   {((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 ? <Check size={16} /> : <Users size={16} />}
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold block">Invites Available</span>
-                    <p className="text-[10px] opacity-40 uppercase font-medium">For next withdrawal</p>
-                  </div>
+              <div className="stats-card rounded-2xl p-4 border border-white/10">
+                <h3 className="text-[10px] font-black text-[#A0AEC0] uppercase tracking-[0.2em] mb-4 ml-1">Withdrawal Checklist</h3>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Invite 20 Friends', current: (profile?.total_invites || 0) - (profile?.consumedInvites || 0), target: 20 },
+                    { label: 'Watch 25 Ads', current: profile?.adsSinceLastWithdrawal || 0, target: 25 },
+                    { label: 'Complete 30 Microtasks', current: profile?.microTasksCompleted || 0, target: 30 }
+                  ].map((req, i) => (
+                    <div key={i} className="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center ${req.current >= req.target ? 'bg-green-500 text-white' : 'bg-white/10 text-white/40'}`}>
+                          {req.current >= req.target ? <Check size={12} /> : <span className="text-[10px] font-bold">{i+1}</span>}
+                        </div>
+                        <span className="text-xs font-bold text-white/80">{req.label}</span>
+                      </div>
+                      <span className={`text-xs font-black ${req.current >= req.target ? 'text-green-400' : 'text-red-400'}`}>
+                        {req.current}/{req.target}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <span className={`text-xs font-black ${((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 ? 'text-green-400' : 'text-[#10B981]'}`}>
-                  {Math.max(0, (profile?.total_invites || 0) - (profile?.consumedInvites || 0))}/20
-                </span>
-              </div>
-              
-              <div className="stats-card rounded-2xl p-5 border border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${(profile?.adsSinceLastWithdrawal || 0) >= 25 ? 'bg-green-500/10 text-green-400' : 'bg-white/10 text-[#A0AEC0]'}`}>
-                   {(profile?.adsSinceLastWithdrawal || 0) >= 25 ? <Check size={16} /> : <MonitorPlay size={16} />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold">Ads Requirement</span>
-                    <p className="text-[9px] opacity-40 uppercase font-medium">Required: 25</p>
-                  </div>
-                </div>
-                <span className={`text-xs font-black ${(profile?.adsSinceLastWithdrawal || 0) >= 25 ? 'text-green-400' : 'text-[#EF4444]'}`}>
-                  {profile?.adsSinceLastWithdrawal || 0}/25
-                </span>
               </div>
             </div>
 
@@ -1265,7 +1274,7 @@ export default function App() {
               onClick={handleWithdraw}
               disabled={isWithdrawing || !profile || profile.balance < 1667}
               className={`w-full h-16 rounded-2xl font-black text-white shadow-lg transition-all flex items-center justify-center gap-3
-                ${(((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 && (profile?.adsSinceLastWithdrawal || 0) >= 25) 
+                ${(((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 && (profile?.adsSinceLastWithdrawal || 0) >= 25 && (profile?.microTasksCompleted || 0) >= 30) 
                   ? 'bg-gradient-to-r from-[#10B981] to-[#064E3B] shadow-[#10B981]/20' 
                   : 'bg-white/10 border border-white/5 text-white/20'}`}
             >
@@ -1274,16 +1283,12 @@ export default function App() {
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>PROCESSING...</span>
                 </div>
-              ) : ((((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 && (profile?.adsSinceLastWithdrawal || 0) >= 25) ? (
+              ) : ((((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) >= 20 && (profile?.adsSinceLastWithdrawal || 0) >= 25 && (profile?.microTasksCompleted || 0) >= 30) ? (
                 'WITHDRAW NOW'
               ) : (
                 <>
                   <Wallet size={20} />
-                  <span>
-                    {((profile?.total_invites || 0) - (profile?.consumedInvites || 0)) < 20 
-                      ? '20 INVITES REQUIRED' 
-                      : 'ADS WATCHED REQ.'}
-                  </span>
+                  <span>LOCKED</span>
                 </>
               ))}
             </motion.button>
