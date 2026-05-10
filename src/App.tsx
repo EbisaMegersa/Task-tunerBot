@@ -377,8 +377,8 @@ export default function App() {
     if (isWatching || !auth.currentUser || !profile) return;
     
     // Hourly reset logic
-    const lastReset = profile.lastHourlyAdReset ? profile.lastHourlyAdReset.toMillis() : Date.now();
-    const isNewHour = Date.now() - lastReset >= 3600000;
+    const lastReset = profile.lastHourlyAdReset ? profile.lastHourlyAdReset.toMillis() : 0;
+    const isNewHour = (Date.now() - lastReset >= 3600000) || !profile.lastHourlyAdReset;
     const currentHourlyCount = isNewHour ? 0 : (profile.adsWatchedThisHour || 0);
 
     if (currentHourlyCount >= 10 && !isNewHour) {
@@ -916,7 +916,7 @@ export default function App() {
 
             {/* Action Button */}
             {(() => {
-              const lastReset = profile?.lastHourlyAdReset ? profile.lastHourlyAdReset.toMillis() : now;
+              const lastReset = profile?.lastHourlyAdReset ? profile.lastHourlyAdReset.toMillis() : (now - 4000000); 
               const isNewHour = now - lastReset >= 3600000;
               const hourlyAds = isNewHour ? 0 : (profile?.adsWatchedThisHour || 0);
               const hourlyLocked = hourlyAds >= 10 && !isNewHour;
