@@ -924,9 +924,10 @@ export default function App() {
               const getHourlyCooldown = () => {
                 const diff = 3600000 - (now - lastReset);
                 if (diff <= 0) return null;
-                const mins = Math.floor(diff / (1000 * 60));
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                 const secs = Math.floor((diff % (1000 * 60)) / 1000);
-                return `${mins}:${secs.toString().padStart(2, '0')}`;
+                return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
               };
 
               return (
