@@ -44,6 +44,8 @@ interface UserProfile {
   invitedBy: string | null;
   has_withdrawn: boolean;
   adsSinceLastWithdrawal: number;
+  adsWatchedThisHour?: number;
+  lastHourlyAdReset?: any;
   microTasksCompleted: number;
   microTaskStats?: Record<string, { count: number; cooldownUntil: number }>;
 }
@@ -234,6 +236,8 @@ export default function App() {
                 invitedBy: data.invitedBy || null,
                 has_withdrawn: data.has_withdrawn || false,
                 adsSinceLastWithdrawal: data.adsSinceLastWithdrawal || 0,
+                adsWatchedThisHour: data.adsWatchedThisHour || 0,
+                lastHourlyAdReset: data.lastHourlyAdReset,
                 microTasksCompleted: data.microTasksCompleted || 0,
                 microTaskStats: data.microTaskStats || {}
               });
@@ -298,6 +302,8 @@ export default function App() {
                 invitedBy: inviterIdStr,
                 has_withdrawn: false,
                 adsSinceLastWithdrawal: 0,
+                adsWatchedThisHour: 0,
+                lastHourlyAdReset: serverTimestamp(),
                 microTasksCompleted: 0,
                 microTaskStats: {},
                 updatedAt: serverTimestamp()
@@ -368,20 +374,36 @@ export default function App() {
   }, []);
 
   const handleWatchAd = async () => {
-    if (isWatching || !auth.currentUser) return;
+    if (isWatching || !auth.currentUser || !profile) return;
     
+    // Hourly reset logic
+    const lastReset = profile.lastHourlyAdReset ? profile.lastHourlyAdReset.toMillis() : Date.now();
+    const isNewHour = Date.now() - lastReset >= 3600000;
+    const currentHourlyCount = isNewHour ? 0 : (profile.adsWatchedThisHour || 0);
+
+    if (currentHourlyCount >= 10 && !isNewHour) {
+      return;
+    }
+
     setIsWatching(true);
 
     const rewardUser = async () => {
       if (!auth.currentUser) return;
       const userDocPath = `users/${auth.currentUser.uid}`;
       try {
-        await updateDoc(doc(db, userDocPath), {
+        const updates: any = {
           adsWatched: increment(1),
           adsSinceLastWithdrawal: increment(1),
           balance: increment(2), // 2 points per ad
+          adsWatchedThisHour: isNewHour ? 1 : increment(1),
           updatedAt: serverTimestamp()
-        });
+        };
+        
+        if (isNewHour) {
+          updates.lastHourlyAdReset = serverTimestamp();
+        }
+
+        await updateDoc(doc(db, userDocPath), updates);
         
         try {
           (window as any).Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
@@ -396,7 +418,8 @@ export default function App() {
     const adFn = (window as any).show_10937696;
     if (typeof adFn === 'function') {
       try {
-        adFn('pop').then(() => {
+        // Rewarded interstitial (no 'pop')
+        adFn().then(() => {
           try {
             (window as any).Telegram?.WebApp?.showAlert('You have seen an ad!');
           } catch {
@@ -506,10 +529,10 @@ export default function App() {
   const handleMicroTaskVisit = (id: number) => {
     const adFn = (window as any).show_10937696;
     if (typeof adFn === 'function') {
-      // Rewarded interstitial
-      adFn().then(() => {
-        // You need to add your user reward function here, which will be executed after the user watches the ad.
-        // For more details, please refer to the detailed instructions.
+      // Rewarded Popup
+      adFn('pop').then(() => {
+        // user watch ad till the end or close it in interstitial format
+        // your code to reward user for rewarded format
         alert('Micro Task is done ✅');
         setMicroTasksTimers(prev => ({ ...prev, [id]: 30 }));
         setMicroTasksActive(prev => ({ ...prev, [id]: true }));
@@ -548,7 +571,7 @@ export default function App() {
 
     const newCount = stats.count + 1;
     const cooldownPeriod = 24 * 60 * 60 * 1000;
-    const isLocking = newCount >= 11;
+    const isLocking = newCount >= 15;
     
     try {
       const updates: any = {
@@ -566,13 +589,13 @@ export default function App() {
         if (isLocking) {
           (window as any).Telegram?.WebApp?.showAlert('Task Completed! 3 points added. Limit reached, task locked for 24h.');
         } else {
-          (window as any).Telegram?.WebApp?.showAlert(`Task Completed! 3 points added. (${newCount}/11 today)`);
+          (window as any).Telegram?.WebApp?.showAlert(`Task Completed! 3 points added. (${newCount}/15 today)`);
         }
       } catch {
         if (isLocking) {
           alert('Task Completed! 3 points added. Limit reached, task locked for 24h.');
         } else {
-          alert(`Task Completed! 3 points added. (${newCount}/11 today)`);
+          alert(`Task Completed! 3 points added. (${newCount}/15 today)`);
         }
       }
 
@@ -892,19 +915,44 @@ export default function App() {
             </motion.div>
 
             {/* Action Button */}
-            <motion.button 
-              whileTap={{ scale: 0.98 }}
-              onClick={handleWatchAd}
-              disabled={isWatching}
-              className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#10B981] to-[#059669] flex items-center justify-center gap-3 text-white font-bold shadow-lg shadow-[#10B981]/20 disabled:opacity-70 disabled:cursor-not-allowed group transition-all"
-            >
-              {isWatching ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Play className="w-5 h-5 fill-current" />
-              )}
-              <span className="text-lg">{isWatching ? 'Watching...' : 'Watch Video Ad'}</span>
-            </motion.button>
+            {(() => {
+              const lastReset = profile?.lastHourlyAdReset ? profile.lastHourlyAdReset.toMillis() : now;
+              const isNewHour = now - lastReset >= 3600000;
+              const hourlyAds = isNewHour ? 0 : (profile?.adsWatchedThisHour || 0);
+              const hourlyLocked = hourlyAds >= 10 && !isNewHour;
+
+              const getHourlyCooldown = () => {
+                const diff = 3600000 - (now - lastReset);
+                if (diff <= 0) return null;
+                const mins = Math.floor(diff / (1000 * 60));
+                const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+              };
+
+              return (
+                <motion.button 
+                  whileTap={{ scale: hourlyLocked ? 1 : 0.98 }}
+                  onClick={handleWatchAd}
+                  disabled={isWatching || hourlyLocked}
+                  className={`w-full h-14 rounded-2xl flex items-center justify-center gap-3 text-white font-bold shadow-lg transition-all
+                    ${hourlyLocked 
+                      ? 'bg-white/5 border border-white/5 text-white/20 shadow-none' 
+                      : 'bg-gradient-to-r from-[#10B981] to-[#059669] shadow-[#10B981]/20 disabled:opacity-70 disabled:cursor-not-allowed group'
+                    }`}
+                >
+                  {isWatching ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : hourlyLocked ? (
+                    <Clock size={16} />
+                  ) : (
+                    <Play className="w-5 h-5 fill-current" />
+                  )}
+                  <span className="text-lg">
+                    {isWatching ? 'Watching...' : hourlyLocked ? `Next Ad in ${getHourlyCooldown()}` : 'Watch Video Ad'}
+                  </span>
+                </motion.button>
+              );
+            })()}
 
             {/* Daily Rewards Sneak Peek */}
             <section className="stats-card rounded-2xl p-4 flex items-center gap-4 cursor-pointer" onClick={() => setActiveTab('tasks')}>
@@ -1034,7 +1082,7 @@ export default function App() {
                 Micro Tasks
               </h2>
               <div className="grid grid-cols-1 gap-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(id => {
+                {[1, 2, 3, 4, 5].map(id => {
                   const timeLeft = microTasksTimers[id] || 0;
                   const isActive = microTasksActive[id];
                   const stats = profile?.microTaskStats?.[String(id)] || { count: 0, cooldownUntil: 0 };
@@ -1058,7 +1106,7 @@ export default function App() {
                         <div>
                           <h4 className="font-bold text-sm">Micro Task {id}</h4>
                           <p className="text-[10px] text-[#A0AEC0]">
-                            {isLocked ? 'Daily limit reached' : `Watch ad & wait 30s to claim 3 pts (${stats.count}/11)`}
+                            {isLocked ? 'Daily limit reached' : `Watch ad & wait 30s to claim 3 pts (${stats.count}/15)`}
                           </p>
                         </div>
                       </div>
