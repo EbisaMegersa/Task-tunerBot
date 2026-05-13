@@ -163,8 +163,15 @@ export default function App() {
     const extractStartParam = (tg: any) => {
       if (tg.initDataUnsafe?.start_param) return tg.initDataUnsafe.start_param;
       try {
-        const urlParams = new URLSearchParams(tg.initData);
-        return urlParams.get('start_param');
+        if (tg.initData) {
+          const urlParams = new URL(window.location.href).searchParams;
+          const directParam = urlParams.get('tgWebAppStartParam');
+          if (directParam) return directParam;
+          
+          const initDataParams = new URLSearchParams(tg.initData);
+          return initDataParams.get('start_param');
+        }
+        return null;
       } catch (e) {
         return null;
       }
@@ -246,23 +253,23 @@ export default function App() {
             // NEW USER REGISTRATION
             try {
               let inviterIdStr = inviterIdFromParam ? String(inviterIdFromParam) : null;
-              if (inviterIdFromParam && String(inviterIdFromParam) !== String(user.id)) {
+              const inviterIdNum = parseInt(inviterIdStr || '0');
+              
+              if (inviterIdNum > 0 && String(inviterIdNum) !== String(user.id)) {
                 try {
-                  console.log("Processing Referral for inviter:", inviterIdFromParam);
+                  console.log("Processing Referral. Inviter ID:", inviterIdNum);
                   const inviterRef = collection(db, "users");
-                  const q = query(inviterRef, where("telegramId", "==", parseInt(String(inviterIdFromParam))), limit(1));
+                  const q = query(inviterRef, where("telegramId", "==", inviterIdNum), limit(1));
                   const querySnapshot = await getDocs(q);
                   
                   if (!querySnapshot.empty) {
                     const inviterDoc = querySnapshot.docs[0];
-                    // Record their Firestore ID if found, otherwise we keep the telegram ID string
-                    // But for "invitedBy" field, storing Telegram ID might be clearer if they are looking at it.
-                    // Let's store "tg_" prefix for clarity if it's just a raw ID.
-                    
                     console.log("Found inviter doc:", inviterDoc.id);
+                    
+                    const inviterDocRef = doc(db, "users", inviterDoc.id);
 
                     // Reward inviter (50 pts)
-                    await updateDoc(doc(db, "users", inviterDoc.id), {
+                    await updateDoc(inviterDocRef, {
                       balance: increment(50),
                       referralsCount: increment(1),
                       total_invites: increment(1),
@@ -270,17 +277,21 @@ export default function App() {
                       updatedAt: serverTimestamp()
                     });
 
-                    // Track in sub-collection for real-time join feed if needed later
+                    // Track in sub-collection
                     await setDoc(doc(db, `users/${inviterDoc.id}/referrals/${user.id}`), {
                       telegramId: user.id,
                       username: identity.username,
                       joinedAt: serverTimestamp()
                     });
                     
-                    tg.showAlert(`Welcome! You got 10 points welcome bonus`);
-                    tg.HapticFeedback?.notificationOccurred('success');
+                    console.log("Referral reward granted to:", inviterDoc.id);
+                    try {
+                      tg.showAlert(`Welcome! You've been invited by ${inviterDoc.data().username || 'a friend'}. You got 10 points bonus!`);
+                      tg.HapticFeedback?.notificationOccurred('success');
+                    } catch {}
                   } else {
-                    console.warn("Inviter NOT found in database for ID:", inviterIdFromParam);
+                    console.warn("Inviter NOT found for ID:", inviterIdNum);
+                    inviterIdStr = null; // Reset if not found
                   }
                 } catch (refErr) {
                   console.error("Referral Logic Failure:", refErr);

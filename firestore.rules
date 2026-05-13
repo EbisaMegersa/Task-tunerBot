@@ -57,7 +57,7 @@ service cloud.firestore {
       ) || (
         // Action: Referral Reward (50 points from another user)
         isSignedIn() && !isOwner(userId)
-        && incoming().balance == existing().balance + 50
+        && incoming().balance == existing().get('balance', 0) + 50
         && (incoming().get('referralsCount', 0) == (existing().get('referralsCount', 0) + 1))
         && (incoming().get('total_invites', 0) == (existing().get('total_invites', 0) + 1))
         && (incoming().get('referralEarnings', 0) == (existing().get('referralEarnings', 0) + 50))
