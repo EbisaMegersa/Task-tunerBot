@@ -36,18 +36,14 @@
           try {
             // Force high version to enable CloudStorage and other features
             Object.defineProperty(obj, 'version', { 
-              get: function() { return highVersion; },
-              set: function() { }, // Prevent overwriting
+              value: highVersion, 
+              writable: true, 
               configurable: true 
             });
-
-            if (!obj.version) obj.version = highVersion;
+            obj.version = highVersion;
 
             Object.defineProperty(obj, 'isVersionAtLeast', { 
-              value: function(ver) { 
-                console.log('Mocked isVersionAtLeast checked for:', ver);
-                return true; 
-              }, 
+              value: function() { return true; }, 
               writable: true, 
               configurable: true 
             });
@@ -84,8 +80,6 @@
 
         // Define Telegram with a robust getter/setter to catch WebApp initialization
         var _tp = window.Telegram || {};
-        if (_tp.WebApp) patchWebApp(_tp.WebApp);
-        
         Object.defineProperty(window, 'Telegram', {
           get: function() { return _tp; },
           set: function(val) {
@@ -94,17 +88,6 @@
           },
           configurable: true
         });
-
-        // Additional safeguard for scripts that might check window.Telegram.WebApp directly
-        if (!window.Telegram) {
-           window.Telegram = { WebApp: {} };
-           patchWebApp(window.Telegram.WebApp);
-        } else if (!window.Telegram.WebApp) {
-           window.Telegram.WebApp = {};
-           patchWebApp(window.Telegram.WebApp);
-        } else {
-           patchWebApp(window.Telegram.WebApp);
-        }
       })();
     </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>

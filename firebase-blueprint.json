@@ -19,8 +19,6 @@
         "invitedBy": { "type": "string" },
         "has_withdrawn": { "type": "boolean" },
         "adsSinceLastWithdrawal": { "type": "integer" },
-        "adsWatchedThisHour": { "type": "integer" },
-        "lastHourlyAdReset": { "type": "string", "format": "date-time" },
         "microTaskStats": {
           "type": "object",
           "additionalProperties": {
