@@ -25,6 +25,8 @@ service cloud.firestore {
         && (data.get('consumedInvites', 0) is number)
         && (data.get('has_withdrawn', false) is bool)
         && (data.get('adsSinceLastWithdrawal', 0) is number)
+        && (data.get('adsWatchedThisHour', 0) is number)
+        && (data.get('microTasksCompleted', 0) is number)
         && data.updatedAt == request.time
         && data.telegramId is number;
     }
@@ -50,7 +52,7 @@ service cloud.firestore {
         incoming().get('updatedAt', request.time) == request.time &&
         (
           isValidUser(incoming()) || 
-          incoming().diff(existing()).affectedKeys().hasAny(['consumedInvites', 'updatedAt', 'has_withdrawn', 'adsSinceLastWithdrawal', 'balance', 'dailyStreak', 'lastDailyClaim', 'tasksCompleted', 'adsWatched', 'referralsCount', 'total_invites', 'referralEarnings'])
+          incoming().diff(existing()).affectedKeys().hasAny(['consumedInvites', 'updatedAt', 'has_withdrawn', 'adsSinceLastWithdrawal', 'balance', 'dailyStreak', 'lastDailyClaim', 'tasksCompleted', 'adsWatched', 'referralsCount', 'total_invites', 'referralEarnings', 'adsWatchedThisHour', 'lastHourlyAdReset', 'microTasksCompleted', 'microTaskStats'])
         )
       ) || (
         // Action: Referral Reward (50 points from another user)
