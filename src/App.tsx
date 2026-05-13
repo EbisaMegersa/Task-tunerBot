@@ -119,13 +119,6 @@ interface UserData {
   username: string;
 }
 
-interface ReferralRecord {
-  id: string;
-  telegramId: number;
-  username: string;
-  joinedAt: any;
-}
-
 export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -143,7 +136,6 @@ export default function App() {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalHistory[]>([]);
   const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
-  const [referralHistory, setReferralHistory] = useState<ReferralRecord[]>([]);
 
   // Micro Tasks State
   const [microTasksTimers, setMicroTasksTimers] = useState<Record<number, number>>({});
@@ -167,7 +159,6 @@ export default function App() {
     let unsubscribeAuth: (() => void) | undefined;
     let unsubscribeProfile: (() => void) | undefined;
     let unsubscribeHistory: (() => void) | undefined;
-    let unsubscribeReferrals: (() => void) | undefined;
 
     const extractStartParam = (tg: any) => {
       if (tg.initDataUnsafe?.start_param) return tg.initDataUnsafe.start_param;
@@ -216,7 +207,6 @@ export default function App() {
         // Cleanup existing listeners if any
         unsubscribeProfile?.();
         unsubscribeHistory?.();
-        unsubscribeReferrals?.();
 
         const userDocPath = `users/${firebaseUser.uid}`;
         const inviterIdFromParam = extractStartParam(tg);
@@ -351,25 +341,6 @@ export default function App() {
              setWithdrawalHistory(history);
           });
         });
-
-        // Referral History Listener
-        const referralsRef = collection(db, `${userDocPath}/referrals`);
-        const qReferrals = query(referralsRef, orderBy('joinedAt', 'desc'), limit(50));
-        unsubscribeReferrals = onSnapshot(qReferrals, (snapshot) => {
-          const list = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          } as ReferralRecord));
-          setReferralHistory(list);
-        }, (err) => {
-          console.error("Referrals Snapshot Error:", err);
-          // Fallback
-          onSnapshot(query(referralsRef, limit(50)), (snap) => {
-            const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReferralRecord));
-            list.sort((a, b) => (b.joinedAt?.seconds || 0) - (a.joinedAt?.seconds || 0));
-            setReferralHistory(list);
-          });
-        });
       });
     };
 
@@ -379,7 +350,6 @@ export default function App() {
       unsubscribeAuth?.();
       unsubscribeProfile?.();
       unsubscribeHistory?.();
-      unsubscribeReferrals?.();
     };
   }, []);
 
@@ -1562,41 +1532,6 @@ export default function App() {
                   <Share2 size={24} />
                   <span>SEND TO FRIENDS</span>
                 </motion.button>
-              </div>
-
-              {/* Referral History Section */}
-              <div className="space-y-4 pt-4">
-                <div className="flex items-center gap-2 px-2">
-                  <Clock size={16} className="text-[#10B981]" />
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight">Referral History</h3>
-                </div>
-
-                {referralHistory.length === 0 ? (
-                  <div className="stats-card rounded-3xl p-10 text-center border border-white/5 bg-white/5 opacity-60">
-                    <p className="text-[#A0AEC0] text-sm">No friends invited yet. Start sharing!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {referralHistory.map((ref) => (
-                      <div key={ref.id} className="stats-card rounded-2xl p-4 flex items-center justify-between border border-white/5 bg-white/5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-[#10B981]/10 flex items-center justify-center text-[#10B981]">
-                            <UserIcon size={18} />
-                          </div>
-                          <div className="text-left">
-                            <p className="text-sm font-bold text-white">{ref.username}</p>
-                            <p className="text-[10px] text-[#A0AEC0] uppercase font-bold opacity-60">
-                              {ref.joinedAt?.toMillis ? new Date(ref.joinedAt.toMillis()).toLocaleDateString() : 'Joined just now'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="bg-[#10B981]/10 text-[#10B981] px-3 py-1 rounded-full text-[10px] font-black">
-                          +50 PTS
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Trust/Tutorial Cards */}
