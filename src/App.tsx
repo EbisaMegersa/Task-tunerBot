@@ -622,7 +622,7 @@ export default function App() {
     }
   };
 
-  const referralLink = profile ? `https://t.me/Tunerttbot?startapp=${profile.telegramId}` : '';
+  const referralLink = profile ? `https://t.me/Tasktuner_bot?startapp=${profile.telegramId}` : '';
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(referralLink);
